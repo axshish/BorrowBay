@@ -1,4 +1,4 @@
-package com.example.borrowbay
+package com.example.borrowbay.features.profile.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -21,6 +21,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.borrowbay.R
+import com.example.borrowbay.features.profile.model.UserProfile
 
 @Composable
 fun ProfileScreen(

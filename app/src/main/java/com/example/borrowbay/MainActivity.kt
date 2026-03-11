@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.borrowbay.feature.home.HomeScreen
+import com.example.borrowbay.navigation.NavGraph
 import com.example.borrowbay.ui.theme.BorrowBayTheme
 
 class MainActivity : ComponentActivity() {
@@ -21,8 +22,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             BorrowBayTheme {
                 
+                NavGraph()
             }
         }
     }
 }
-
