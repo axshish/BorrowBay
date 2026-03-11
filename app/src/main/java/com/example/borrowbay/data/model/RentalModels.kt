@@ -1,26 +1,30 @@
 package com.example.borrowbay.data.model
 
-import androidx.compose.ui.graphics.vector.ImageVector
+import kotlinx.serialization.Serializable
 
+@Serializable
 data class RentalItem(
     val id: String,
     val name: String,
+    val description: String? = null,
     val pricePerDay: Double,
-    val distanceKm: Double,
-    val rating: Double,
-    val imageUrl: String,
-    val isAvailable: Boolean,
-    val owner: Owner
+    val location: String,
+    val imageUrls: List<String> = emptyList(), // List of images, 0th is the main image
+    val isAvailable: Boolean = true,
+    val ownerId: String,
+    val categoryId: String,
+    val owner: Owner? = null
 )
 
+@Serializable
 data class Owner(
     val id: String,
     val name: String,
     val avatarUrl: String? = null
 )
 
+@Serializable
 data class Category(
     val id: String,
-    val name: String,
-    val icon: ImageVector? = null
+    val name: String
 )
