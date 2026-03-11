@@ -1,4 +1,4 @@
-package com.example.borrowbay.feature.home
+package com.example.borrowbay.features.home.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

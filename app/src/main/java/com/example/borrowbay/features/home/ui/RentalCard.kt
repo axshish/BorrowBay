@@ -1,4 +1,4 @@
-package com.example.borrowbay.feature.home
+package com.example.borrowbay.features.home.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -12,12 +12,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.example.borrowbay.data.model.Owner
 import com.example.borrowbay.data.model.RentalItem
 
 @Composable
@@ -38,14 +34,12 @@ fun RentalCard(
                     .fillMaxWidth()
                     .height(160.dp)
             ) {
-                // Placeholder for Image
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(Color.DarkGray)
                 )
 
-                // Availability Badge
                 Surface(
                     modifier = Modifier
                         .padding(12.dp)
@@ -128,14 +122,4 @@ fun RentalCard(
             }
         }
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun RentalCardPreview() {
-    RentalCard(
-        item = RentalItem(
-            "1", "Canon EOS R5", 50.0, 1.2, 4.8, "", true, Owner("o1", "John Doe")
-        )
-    )
 }

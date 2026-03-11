@@ -1,4 +1,4 @@
-package com.example.borrowbay.feature.home
+package com.example.borrowbay.features.home.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -11,30 +11,29 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.borrowbay.features.home.viewmodel.HomeViewModel
 
 @Composable
 fun HomeScreen(
-    viewModel: HomeViewModel = viewModel()
+    viewModel: HomeViewModel = viewModel(),
+    onProfileClick: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
     Scaffold(
         bottomBar = {
-            BottomNavigationBar()
+            BottomNavigationBar(onProfileClick = onProfileClick)
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { /* TODO */ },
+                onClick = { /* TODO: Add Listing */ },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
                 shape = CircleShape,
-                modifier = Modifier.offset(y = 50.dp) // Adjust position to look like it's center of bottom nav
+                modifier = Modifier.offset(y = 50.dp)
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Add")
             }
@@ -66,7 +65,7 @@ fun HomeScreen(
                         onSeeAllClick = { /* TODO */ }
                     )
                     LazyRow(
-                        contentPadding = PaddingValues(horizontal = 8.dp),
+                        contentPadding = PaddingValues(horizontal = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(uiState.nearbyRentals) { item ->
@@ -83,7 +82,7 @@ fun HomeScreen(
                         onSeeAllClick = { /* TODO */ }
                     )
                     LazyRow(
-                        contentPadding = PaddingValues(horizontal = 8.dp),
+                        contentPadding = PaddingValues(horizontal = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(uiState.trendingRentals) { item ->
@@ -93,7 +92,6 @@ fun HomeScreen(
                 }
             }
 
-            // Bottom spacing
             item {
                 Spacer(modifier = Modifier.height(80.dp))
             }
@@ -102,7 +100,7 @@ fun HomeScreen(
 }
 
 @Composable
-fun BottomNavigationBar() {
+fun BottomNavigationBar(onProfileClick: () -> Unit) {
     NavigationBar(
         containerColor = MaterialTheme.colorScheme.surface,
         tonalElevation = 8.dp
@@ -119,13 +117,11 @@ fun BottomNavigationBar() {
             selected = false,
             onClick = { }
         )
-        // Placeholder for middle Add button
+        
         Spacer(modifier = Modifier.weight(1f))
         
         NavigationBarItem(
-//            icon = { Icon(Icons.Default.Chat, contentDescription = "Chat") },
-            icon = { Icon(Icons.Default.Edit, contentDescription = "Chat") },
-
+            icon = { Icon(Icons.Default.Chat, contentDescription = "Chat") },
             label = { Text("Chat") },
             selected = false,
             onClick = { }
@@ -134,14 +130,7 @@ fun BottomNavigationBar() {
             icon = { Icon(Icons.Default.Person, contentDescription = "Profile") },
             label = { Text("Profile") },
             selected = false,
-            onClick = { }
+            onClick = onProfileClick
         )
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun HomeScreenPreview() {
-    // Note: This preview might need a mock ViewModel or UI State
-    HomeScreen()
 }
