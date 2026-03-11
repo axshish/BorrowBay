@@ -8,8 +8,8 @@ data class UserProfile(
 )
 
 sealed class Screen {
-    object Profile : Screen()
-    object Details : Screen()
-    object ActiveListings : Screen()
-    object RentalHistory : Screen()
+    data object Profile : Screen()
+    data object Details : Screen()
+    data object ActiveListings : Screen()
+    data object RentalHistory : Screen()
 }

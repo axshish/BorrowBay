@@ -28,7 +28,7 @@ fun ProfileApp() {
 
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
         when (currentScreen) {
-            is Screen.Profile -> {
+            Screen.Profile -> {
                 ProfileScreen(
                     modifier = Modifier.padding(innerPadding),
                     profile = userProfile,
@@ -37,7 +37,7 @@ fun ProfileApp() {
                     onRentalHistoryClick = { currentScreen = Screen.RentalHistory }
                 )
             }
-            is Screen.Details -> {
+            Screen.Details -> {
                 DetailsScreen(
                     modifier = Modifier.padding(innerPadding),
                     profile = userProfile,
@@ -48,13 +48,13 @@ fun ProfileApp() {
                     onBack = { currentScreen = Screen.Profile }
                 )
             }
-            is Screen.ActiveListings -> {
+            Screen.ActiveListings -> {
                 ActiveListingsScreen(
                     modifier = Modifier.padding(innerPadding),
                     onBack = { currentScreen = Screen.Profile }
                 )
             }
-            is Screen.RentalHistory -> {
+            Screen.RentalHistory -> {
                 RentalHistoryScreen(
                     modifier = Modifier.padding(innerPadding),
                     onBack = { currentScreen = Screen.Profile }
