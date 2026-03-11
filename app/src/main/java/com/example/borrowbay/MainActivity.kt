@@ -4,7 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import com.example.borrowbay.features.profile.ui.ProfileApp
+import com.example.borrowbay.navigation.NavGraph
 import com.example.borrowbay.ui.theme.BorrowBayTheme
 
 class MainActivity : ComponentActivity() {
@@ -13,7 +13,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             BorrowBayTheme {
-                ProfileApp()
+                NavGraph()
             }
         }
     }

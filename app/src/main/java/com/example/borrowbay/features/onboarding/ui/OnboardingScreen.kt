@@ -1,4 +1,4 @@
-package com.example.borrowbay1
+package com.example.borrowbay.features.onboarding.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -8,57 +8,30 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.AttachMoney
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.borrowbay.features.onboarding.model.OnboardingPage
+import com.example.borrowbay.features.onboarding.viewmodel.OnboardingViewModel
 import kotlinx.coroutines.launch
 
-data class OnboardingPage(
-    val title: String,
-    val description: String,
-    val icon: ImageVector,
-    val iconColor: Color,
-    val buttonText: String
-)
-
 @Composable
-fun OnboardingScreen(onFinished: () -> Unit) {
-    val pages = listOf(
-        OnboardingPage(
-            title = "Rent anything nearby",
-            description = "Discover cameras, tools, bikes and more — available from people around you.",
-            icon = Icons.Default.LocationOn,
-            iconColor = Color(0xFF0066FF),
-            buttonText = "Continue"
-        ),
-        OnboardingPage(
-            title = "Earn from unused items",
-            description = "Turn idle possessions into income. List in minutes, earn while you sleep.",
-            icon = Icons.Default.AttachMoney,
-            iconColor = Color(0xFF00C853),
-            buttonText = "Continue"
-        ),
-        OnboardingPage(
-            title = "Escrow-protected rentals",
-            description = "Deposits held securely. Automatically refunded when items return safely.",
-            icon = Icons.Default.Security,
-            iconColor = Color(0xFFFFB300),
-            buttonText = "Get Started"
-        )
-    )
-
+fun OnboardingScreen(
+    onFinished: () -> Unit,
+    viewModel: OnboardingViewModel = viewModel()
+) {
+    val pages by viewModel.pages.collectAsState()
     val pagerState = rememberPagerState(pageCount = { pages.size })
     val scope = rememberCoroutineScope()
 
