@@ -1,4 +1,4 @@
-package com.example.borrowbay
+package com.example.borrowbay.features.profile.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -11,13 +11,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-fun ActiveListingsScreen(modifier: Modifier = Modifier, onBack: () -> Unit) {
+fun RentalHistoryScreen(modifier: Modifier = Modifier, onBack: () -> Unit) {
     Column(modifier = modifier.fillMaxSize().padding(16.dp)) {
         IconButton(onClick = onBack) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
         }
-        Text("Active Listings", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Text("Rental History", fontSize = 24.sp, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(16.dp))
-        Text("Your currently active items for rent.")
+        Text("Your past rental activity.")
     }
 }
