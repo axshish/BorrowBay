@@ -1,6 +1,7 @@
 package com.example.borrowbay.features.createlisting.ui
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.location.Geocoder
 import android.location.Location
@@ -17,9 +18,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -39,6 +42,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -49,20 +53,14 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.example.borrowbay.features.createlisting.viewmodel.CreateListingViewModel
 import com.example.borrowbay.features.createlisting.viewmodel.ListingUiState
 import com.example.borrowbay.ui.theme.*
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
-import com.google.android.gms.maps.model.CameraPosition
-import com.google.android.gms.maps.model.LatLng
-import com.google.maps.android.compose.CameraPositionState
-import com.google.maps.android.compose.GoogleMap
-import com.google.maps.android.compose.MapUiSettings
-import com.google.maps.android.compose.Marker
-import com.google.maps.android.compose.MarkerState
-import com.google.maps.android.compose.rememberCameraPositionState
-import com.google.maps.android.compose.rememberMarkerState
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -70,9 +68,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import org.osmdroid.config.Configuration
+import org.osmdroid.events.MapEventsReceiver
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.MapEventsOverlay
 import org.osmdroid.views.overlay.Marker
 import java.io.File
 import java.text.SimpleDateFormat
@@ -86,8 +86,9 @@ enum class ListingStep {
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun AddProductScreen(
-    viewModel: ProductViewModel = viewModel(),
-    onBack: () -> Unit = {}
+    viewModel: CreateListingViewModel = viewModel(),
+    onBack: () -> Unit = {},
+    onSuccess: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -165,12 +166,11 @@ fun AddProductScreen(
         LocationServices.getFusedLocationProviderClient(context) 
     }
 
-    val MAX_RENT = 100000.0
-    val MAX_SECURITY = 1000000.0
+    val maxRent = 100000.0
+    val maxSecurity = 1000000.0
 
     LaunchedEffect(uiState) {
         if (uiState is ListingUiState.Success) {
-            Toast.makeText(context, "Product listed successfully!", Toast.LENGTH_LONG).show()
             showSuccessDialog = true
         } else if (uiState is ListingUiState.Error) {
             Toast.makeText(context, (uiState as ListingUiState.Error).msg, Toast.LENGTH_SHORT).show()
@@ -225,7 +225,7 @@ fun AddProductScreen(
             if (storageDir == null) return null
             storageDir.mkdirs()
             val file = File.createTempFile("JPEG_${timeStamp}_", ".jpg", storageDir)
-            FileProvider.getUriForFile(context, "com.example.borrowbay.provider", file)
+            FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
         } catch (e: Exception) {
             null
         }
@@ -285,7 +285,7 @@ fun AddProductScreen(
                 Button(onClick = {
                     showSuccessDialog = false
                     viewModel.resetListingState()
-                    onPublished()
+                    onSuccess()
                 }) { Text("OK", color = OnPrimary) }
             },
             title = { Text("Published!", color = Color.Black, fontWeight = FontWeight.Bold) },
@@ -333,7 +333,7 @@ fun AddProductScreen(
                 Box(modifier = Modifier.padding(16.dp).navigationBarsPadding()) {
                     val rentVal = rent.toDoubleOrNull() ?: 0.0
                     val securityVal = security.toDoubleOrNull() ?: 0.0
-                    val isPriceValid = rentVal <= MAX_RENT && securityVal <= MAX_SECURITY
+                    val isPriceValid = rentVal > 0 && rentVal <= maxRent && securityVal >= 0 && securityVal <= maxSecurity
 
                     Button(
                         onClick = {
@@ -390,7 +390,7 @@ fun AddProductScreen(
                         },
                         desc, { desc = it }
                     )
-                    ListingStep.PRICE -> PriceStep(rent, { rent = it }, security, { security = it }, MAX_RENT, MAX_SECURITY)
+                    ListingStep.PRICE -> PriceStep(rent, { rent = it }, security, { security = it }, maxRent, maxSecurity)
                     ListingStep.LOCATION -> LocationStep(
                         address = address, 
                         latitude = latitude,
@@ -482,6 +482,7 @@ fun DetailsStep(name: String, onNameChange: (String) -> Unit, selectedCategories
         OutlinedTextField(
             value = name, onValueChange = onNameChange, placeholder = { Text("Enter item title", color = MutedFgLight) },
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp), shape = RoundedCornerShape(14.dp),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
             colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Ocean, unfocusedBorderColor = BorderLight, unfocusedContainerColor = SurfaceLight, focusedContainerColor = SurfaceLight, focusedTextColor = Color.Black, unfocusedTextColor = Color.Black)
         )
 
@@ -537,7 +538,7 @@ fun PriceStep(rent: String, onRentChange: (String) -> Unit, security: String, on
             placeholder = { Text("Enter amount", color = MutedFgLight) },
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             shape = RoundedCornerShape(14.dp),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
             colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Ocean, unfocusedBorderColor = BorderLight, unfocusedContainerColor = SurfaceLight, focusedContainerColor = SurfaceLight, focusedTextColor = Color.Black, unfocusedTextColor = Color.Black),
             isError = (rent.toDoubleOrNull() ?: 0.0) > maxRent
         )
@@ -553,7 +554,7 @@ fun PriceStep(rent: String, onRentChange: (String) -> Unit, security: String, on
             placeholder = { Text("Enter amount", color = MutedFgLight) },
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             shape = RoundedCornerShape(14.dp),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
             colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Ocean, unfocusedBorderColor = BorderLight, unfocusedContainerColor = SurfaceLight, focusedContainerColor = SurfaceLight, focusedTextColor = Color.Black, unfocusedTextColor = Color.Black),
             isError = (security.toDoubleOrNull() ?: 0.0) > maxSecurity
         )
@@ -600,29 +601,26 @@ fun LocationStep(
         Spacer(Modifier.height(32.dp))
 
         Box(modifier = Modifier.fillMaxWidth().height(280.dp).clip(RoundedCornerShape(20.dp)).background(MutedLight).border(1.dp, BorderLight, RoundedCornerShape(20.dp))) {
-            AndroidView(
+            AndroidView<MapView>(
                 factory = { ctx ->
                     MapView(ctx).apply {
                         setTileSource(TileSourceFactory.MAPNIK)
                         setMultiTouchControls(true)
                         controller.setZoom(15.0)
 
-                        // Handle map tap for location selection
-                        val mOverlay = object : org.osmdroid.views.overlay.Overlay() {
-                            override fun onSingleTapConfirmed(e: android.view.MotionEvent, mapView: MapView): Boolean {
-                                val projection = mapView.projection
-                                val geoPoint = projection.fromPixels(e.x.toInt(), e.y.toInt()) as GeoPoint
-                                onMapClick(geoPoint.latitude, geoPoint.longitude)
+                        val eventsReceiver = object : MapEventsReceiver {
+                            override fun singleTapConfirmedHelper(p: GeoPoint): Boolean {
+                                onMapClick(p.latitude, p.longitude)
                                 return true
                             }
+                            override fun longPressHelper(p: GeoPoint): Boolean = false
                         }
-                        overlays.add(mOverlay)
+                        overlays.add(MapEventsOverlay(eventsReceiver))
                     }
                 },
                 update = { view ->
                     if (latitude != 0.0) {
                         val geoPoint = GeoPoint(latitude, longitude)
-                        // Only center if it's far from current center to avoid jitter while typing address string
                         val currentCenter = view.mapCenter
                         val dist = (currentCenter.latitude - latitude) * (currentCenter.latitude - latitude) +
                                    (currentCenter.longitude - longitude) * (currentCenter.longitude - longitude)
@@ -672,6 +670,7 @@ fun LocationStep(
                     }
                 },
                 modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Ocean, unfocusedBorderColor = BorderLight, unfocusedContainerColor = SurfaceLight, focusedContainerColor = SurfaceLight, focusedTextColor = Color.Black, unfocusedTextColor = Color.Black)
             )
 

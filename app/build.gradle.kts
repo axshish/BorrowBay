@@ -69,12 +69,11 @@ dependencies {
     // Location and Maps
     implementation(libs.play.services.location)
     implementation(libs.maps.compose)
+    implementation(libs.osmdroid.android)
 
     // Supabase (Keeping for Storage)
     implementation(platform(libs.supabase.bom))
     implementation(libs.supabase.storage)
-    // implementation(libs.supabase.postgrest) // Optional, removing if not used
-    // implementation(libs.supabase.auth) // Removing as we use Firebase
 
     // Ktor
     implementation(libs.ktor.client.okhttp)

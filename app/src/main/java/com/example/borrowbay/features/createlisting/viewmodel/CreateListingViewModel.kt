@@ -6,7 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.borrowbay.features.createlisting.data.ListingRepository
 import com.example.borrowbay.features.createlisting.model.Item
-import kotlinx.coroutines.delay
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 
 sealed class ListingUiState {
@@ -24,9 +24,7 @@ class CreateListingViewModel(
     private val _listingState = mutableStateOf<ListingUiState>(ListingUiState.Idle)
     val listingState: State<ListingUiState> = _listingState
 
-    fun checkBankDetailsAndInitialize() {
-        _listingState.value = ListingUiState.Idle
-    }
+    private val auth = FirebaseAuth.getInstance()
 
     fun listProduct(
         name: String,
@@ -39,6 +37,12 @@ class CreateListingViewModel(
         lng: Double,
         imageByteLists: List<ByteArray>
     ) {
+        val currentUser = auth.currentUser
+        if (currentUser == null) {
+            _listingState.value = ListingUiState.Error("User not logged in")
+            return
+        }
+
         viewModelScope.launch {
             _listingState.value = ListingUiState.Loading
             
@@ -51,8 +55,8 @@ class CreateListingViewModel(
                 address = address,
                 latitude = lat,
                 longitude = lng,
-                sellerId = "demo_user_id",
-                sellerEmail = "demo@example.com"
+                sellerId = currentUser.uid,
+                sellerEmail = currentUser.email ?: ""
             )
 
             val result = repository.addItem(item, imageByteLists)

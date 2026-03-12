@@ -73,6 +73,9 @@ fun NavGraph() {
             AddProductScreen(
                 onBack = {
                     navController.popBackStack()
+                },
+                onSuccess = {
+                    navController.popBackStack()
                 }
             )
         }

@@ -6,11 +6,13 @@ import androidx.lifecycle.viewModelScope
 import com.example.borrowbay.data.model.User
 import com.example.borrowbay.data.repository.UserRepository
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.userProfileChangeRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 enum class RegistrationStep(val stepNumber: Int) {
     PROFILE_PICTURE(1),
@@ -124,38 +126,50 @@ class UserRegistrationViewModel : ViewModel() {
     }
 
     fun registerUser() {
-        val currentUser = auth.currentUser ?: return
+        val currentUser = auth.currentUser ?: run {
+            _uiState.update { it.copy(error = "No authenticated user found") }
+            return
+        }
         val state = _uiState.value
         
-        _uiState.update { it.copy(isLoading = true) }
+        _uiState.update { it.copy(isLoading = true, error = null) }
         
         viewModelScope.launch {
-            // Generate initials avatar if no avatar provided
-            val avatarUrl = state.avatarUri ?: generateInitialsAvatar(state.name, state.email)
-            
-            val user = User(
-                id = currentUser.uid,
-                name = state.name,
-                email = state.email,
-                phone = state.phone.ifBlank { null },
-                avatarUrl = avatarUrl,
-                address = state.address.ifBlank { null },
-                latitude = state.latitude,
-                longitude = state.longitude,
-                locationName = state.locationName,
-                razorpayId = state.razorpayId.ifBlank { null }
-            )
-            
             try {
+                // 1. Generate/Set Avatar URL
+                val avatarUrl = state.avatarUri ?: generateInitialsAvatar(state.name, state.email)
+                
+                // 2. Update Firebase Auth Profile (DisplayName and Photo)
+                val profileUpdates = userProfileChangeRequest {
+                    displayName = state.name
+                    photoUri = android.net.Uri.parse(avatarUrl)
+                }
+                currentUser.updateProfile(profileUpdates).await()
+
+                // 3. Create User Object for Firestore
+                val user = User(
+                    id = currentUser.uid,
+                    name = state.name,
+                    email = state.email,
+                    phone = state.phone.ifBlank { null },
+                    avatarUrl = avatarUrl,
+                    address = state.address.ifBlank { null },
+                    latitude = state.latitude,
+                    longitude = state.longitude,
+                    locationName = state.locationName,
+                    razorpayId = state.razorpayId.ifBlank { null }
+                )
+                
+                // 4. Save to Firestore
                 val success = userRepository.createUser(user)
                 if (success) {
                     _uiState.update { it.copy(isLoading = false, isRegistrationSuccess = true) }
                 } else {
-                    _uiState.update { it.copy(isLoading = false, error = "Failed to create profile. Please try again.") }
+                    _uiState.update { it.copy(isLoading = false, error = "Failed to create profile in database") }
                 }
             } catch (e: Exception) {
                 Log.e("UserRegistrationVM", "Registration error", e)
-                _uiState.update { it.copy(isLoading = false, error = e.localizedMessage) }
+                _uiState.update { it.copy(isLoading = false, error = e.localizedMessage ?: "An error occurred") }
             }
         }
     }
