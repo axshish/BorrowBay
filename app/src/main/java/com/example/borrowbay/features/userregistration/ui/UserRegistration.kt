@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Geocoder
+import android.location.LocationManager
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -119,16 +120,15 @@ fun UserRegistrationScreen(
             val storageDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
             val photoFile = File.createTempFile("PROFILE_${timeStamp}_", ".jpg", storageDir)
             
-            val uri = FileProvider.getUriForFile(
-                context, 
-                "${context.packageName}.provider", 
-                photoFile
-            )
+            // Explicitly use the authority defined in AndroidManifest.xml
+            val authority = "${context.packageName}.provider"
+            val uri = FileProvider.getUriForFile(context, authority, photoFile)
+            
             tempPhotoUri = uri
             cameraLauncher.launch(uri)
         } catch (e: Exception) {
             Log.e("UserRegistration", "Camera Error", e)
-            Toast.makeText(context, "Failed to open camera: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Camera Error: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -138,7 +138,7 @@ fun UserRegistrationScreen(
         if (isGranted) {
             launchCamera()
         } else {
-            Toast.makeText(context, "Camera permission is required to take a profile picture", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Camera permission is required", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -196,11 +196,7 @@ fun UserRegistrationScreen(
                     Button(
                         onClick = {
                             focusManager.clearFocus()
-                            if (uiState.currentStep == RegistrationStep.RAZORPAY) {
-                                viewModel.registerUser()
-                            } else {
-                                viewModel.nextStep()
-                            }
+                            viewModel.nextStep(context)
                         },
                         modifier = Modifier.fillMaxWidth().height(56.dp),
                         shape = RoundedCornerShape(16.dp),
@@ -389,21 +385,37 @@ fun LocationSelectionStep(
     }
 
     val requestLocation = {
-        try {
-            @SuppressLint("MissingPermission")
-            fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
-                .addOnSuccessListener { loc ->
-                    if (loc != null) {
-                        updateFromLocation(loc.latitude, loc.longitude)
-                    } else {
-                        // Fallback to last location if current is null
-                        fusedLocationClient.lastLocation.addOnSuccessListener { lastLoc ->
-                            lastLoc?.let { updateFromLocation(it.latitude, it.longitude) }
+        val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        val isGpsEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
+        val isNetworkEnabled = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+
+        if (!isGpsEnabled && !isNetworkEnabled) {
+            Toast.makeText(context, "Location services are disabled. Please enable GPS.", Toast.LENGTH_LONG).show()
+        } else {
+            Toast.makeText(context, "Fetching current location...", Toast.LENGTH_SHORT).show()
+            try {
+                @SuppressLint("MissingPermission")
+                fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
+                    .addOnSuccessListener { loc ->
+                        if (loc != null) {
+                            updateFromLocation(loc.latitude, loc.longitude)
+                        } else {
+                            // Fallback to last location
+                            fusedLocationClient.lastLocation.addOnSuccessListener { lastLoc ->
+                                if (lastLoc != null) {
+                                    updateFromLocation(lastLoc.latitude, lastLoc.longitude)
+                                } else {
+                                    Toast.makeText(context, "Could not determine location. Tap the map instead.", Toast.LENGTH_LONG).show()
+                                }
+                            }
                         }
                     }
-                }
-        } catch (e: SecurityException) {
-            Log.e("UserRegistration", "Location access error", e)
+                    .addOnFailureListener { e ->
+                        Toast.makeText(context, "Location Error: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                    }
+            } catch (e: SecurityException) {
+                Log.e("UserRegistration", "Location access error", e)
+            }
         }
     }
 

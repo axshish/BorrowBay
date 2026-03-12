@@ -1,12 +1,16 @@
 package com.example.borrowbay.features.userregistration.viewmodel
 
+import android.content.Context
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.borrowbay.core.supabase
 import com.example.borrowbay.data.model.User
 import com.example.borrowbay.data.repository.UserRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.userProfileChangeRequest
+import io.github.jan.supabase.storage.storage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -88,13 +92,13 @@ class UserRegistrationViewModel : ViewModel() {
         _uiState.update { it.copy(avatarUri = uri) }
     }
 
-    fun nextStep() {
+    fun nextStep(context: Context) {
         val current = _uiState.value.currentStep
         val next = RegistrationStep.entries.find { it.stepNumber == current.stepNumber + 1 }
         if (next != null) {
             _uiState.update { it.copy(currentStep = next) }
         } else {
-            registerUser()
+            registerUser(context)
         }
     }
 
@@ -125,7 +129,7 @@ class UserRegistrationViewModel : ViewModel() {
         return android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()
     }
 
-    fun registerUser() {
+    fun registerUser(context: Context) {
         val currentUser = auth.currentUser ?: run {
             _uiState.update { it.copy(error = "No authenticated user found") }
             return
@@ -136,13 +140,21 @@ class UserRegistrationViewModel : ViewModel() {
         
         viewModelScope.launch {
             try {
-                // 1. Generate/Set Avatar URL
-                val avatarUrl = state.avatarUri ?: generateInitialsAvatar(state.name, state.email)
+                // 1. Upload Avatar to Supabase if it's a local Uri
+                var avatarUrl = state.avatarUri
+                
+                if (avatarUrl != null && (avatarUrl.startsWith("content://") || avatarUrl.startsWith("file://"))) {
+                    avatarUrl = uploadAvatarToSupabase(context, Uri.parse(avatarUrl), currentUser.uid)
+                }
+
+                if (avatarUrl == null) {
+                    avatarUrl = generateInitialsAvatar(state.name, state.email)
+                }
                 
                 // 2. Update Firebase Auth Profile (DisplayName and Photo)
                 val profileUpdates = userProfileChangeRequest {
                     displayName = state.name
-                    photoUri = android.net.Uri.parse(avatarUrl)
+                    photoUri = Uri.parse(avatarUrl)
                 }
                 currentUser.updateProfile(profileUpdates).await()
 
@@ -171,6 +183,25 @@ class UserRegistrationViewModel : ViewModel() {
                 Log.e("UserRegistrationVM", "Registration error", e)
                 _uiState.update { it.copy(isLoading = false, error = e.localizedMessage ?: "An error occurred") }
             }
+        }
+    }
+
+    private suspend fun uploadAvatarToSupabase(context: Context, uri: Uri, userId: String): String? {
+        return try {
+            val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return null
+            val fileName = "avatars/$userId.jpg"
+            val bucket = supabase.storage.from("item-images")
+            
+            // Upload the file
+            bucket.upload(fileName, bytes) {
+                upsert = true
+            }
+            
+            // Get public URL
+            bucket.publicUrl(fileName)
+        } catch (e: Exception) {
+            Log.e("UserRegistrationVM", "Supabase upload error", e)
+            null
         }
     }
 
