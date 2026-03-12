@@ -1,8 +1,7 @@
-package com.example.borrowbay.ui.screens
+package com.example.borrowbay.features.createlisting.ui
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.location.Address
 import android.location.Geocoder
 import android.location.Location
 import android.net.Uri
@@ -24,7 +23,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.automirrored.filled.DirectionsBike
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.MyLocation
 import androidx.compose.material3.*
@@ -34,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -47,17 +46,19 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.example.borrowbay.features.createlisting.viewmodel.ListingUiState
+import com.example.borrowbay.features.createlisting.viewmodel.ProductViewModel
 import com.example.borrowbay.ui.theme.*
-import com.example.borrowbay.viewmodel.ListingUiState
-import com.example.borrowbay.viewmodel.ProductViewModel
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
+import com.google.maps.android.compose.CameraPositionState
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.Marker
+import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.rememberMarkerState
 import kotlinx.coroutines.Dispatchers
@@ -72,7 +73,7 @@ enum class ListingStep {
     PHOTOS, DETAILS, PRICE, LOCATION
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddProductScreen(
     viewModel: ProductViewModel = viewModel(),
@@ -194,7 +195,7 @@ fun AddProductScreen(
 
     BackHandler {
         if (currentStep == ListingStep.PHOTOS) onBack()
-        else currentStep = ListingStep.values()[currentStep.ordinal - 1]
+        else currentStep = ListingStep.entries[currentStep.ordinal - 1]
     }
 
     if (showSuccessDialog) {
@@ -223,7 +224,7 @@ fun AddProductScreen(
                         Surface(
                             onClick = {
                                 if (currentStep == ListingStep.PHOTOS) onBack()
-                                else currentStep = ListingStep.values()[currentStep.ordinal - 1]
+                                else currentStep = ListingStep.entries[currentStep.ordinal - 1]
                             },
                             shape = RoundedCornerShape(12.dp),
                             color = SurfaceLight,
@@ -238,7 +239,7 @@ fun AddProductScreen(
                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = SurfaceLight)
                 )
                 Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    ListingStep.values().forEach { step ->
+                    ListingStep.entries.forEach { step ->
                         Box(
                             modifier = Modifier.weight(1f).height(4.dp).clip(RoundedCornerShape(2.dp))
                                 .background(if (step.ordinal <= currentStep.ordinal) Ocean else MutedLight)
@@ -330,7 +331,10 @@ fun AddProductScreen(
                 if (permissionCheck == PackageManager.PERMISSION_GRANTED) {
                     val uri = createTempPictureUri()
                     if (uri != null) { tempPhotoUriString = uri.toString(); cameraLauncher.launch(uri) }
-                } else { cameraPermissionLauncher.launch(Manifest.permission.CAMERA) }
+                } else {
+                    cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                }
+                showImageSourceDialog = false
             }
         )
     }
@@ -339,129 +343,125 @@ fun AddProductScreen(
 @Composable
 fun PhotoStep(images: List<Uri>, onAdd: () -> Unit, onRemove: (Int) -> Unit) {
     Column {
-        Text("Add photos", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color.Black)
-        Text("Add up to 8 photos. The first photo will be your cover.", color = MutedFgLight, fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp))
-        Spacer(Modifier.height(32.dp))
-        LazyVerticalGrid(columns = GridCells.Fixed(3), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            item {
-                Box(
-                    modifier = Modifier.aspectRatio(1f).clip(RoundedCornerShape(16.dp)).background(SurfaceLight)
-                        .clickable { onAdd() }
-                        .drawDashedBorder(MutedFgLight, 16.dp), 
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.PhotoCamera, null, tint = MutedFgLight, modifier = Modifier.size(32.dp))
-                        Spacer(Modifier.height(4.dp))
-                        Text("Add Photo", color = MutedFgLight, fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                    }
+        Text("Add photos of your item", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+        Text("Good photos help your item rent faster.", color = Color.Gray, fontSize = 16.sp)
+        Spacer(Modifier.height(24.dp))
+        
+        if (images.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(MutedLight)
+                    .clickable { onAdd() }
+                    .drawWithContent {
+                        drawContent()
+                        drawRoundRect(
+                            color = Color.Gray, // Add the color here (e.g., Color.Gray or Ocean)
+                            cornerRadius = CornerRadius(12.dp.toPx()),
+                            style = Stroke(
+                                width = 2.dp.toPx(),
+                                pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
+                            )
+                        )
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Default.AddAPhoto, null, modifier = Modifier.size(48.dp), tint = Ocean)
+                    Spacer(Modifier.height(8.dp))
+                    Text("Tap to add photos", color = Ocean, fontWeight = FontWeight.Bold)
                 }
             }
-            itemsIndexed(images) { index, uri ->
-                Box(modifier = Modifier.aspectRatio(1f)) {
-                    AsyncImage(model = uri, contentDescription = null, modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(16.dp)), contentScale = ContentScale.Crop)
-                    IconButton(onClick = { onRemove(index) }, modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).size(22.dp).background(Color.Black.copy(alpha = 0.5f), CircleShape)) {
-                        Icon(Icons.Default.Close, null, tint = Color.White, modifier = Modifier.size(14.dp))
+        } else {
+            LazyVerticalGrid(columns = GridCells.Fixed(2), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                itemsIndexed(images) { idx, uri ->
+                    Box(modifier = Modifier.aspectRatio(1f).clip(RoundedCornerShape(12.dp))) {
+                        AsyncImage(model = uri, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                        IconButton(onClick = { onRemove(idx) }, modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).size(28.dp).background(Color.Black.copy(0.5f), CircleShape)) {
+                            Icon(Icons.Default.Close, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                        }
                     }
                 }
-            }
-            items(maxOf(0, 5 - images.size)) { Box(modifier = Modifier.aspectRatio(1f).clip(RoundedCornerShape(16.dp)).background(MutedLight)) }
-        }
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-fun DetailsStep(name: String, onNameChange: (String) -> Unit, category: String, onCatChange: (String) -> Unit, desc: String, onDescChange: (String) -> Unit) {
-    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-        Text("Item details", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color.Black)
-        Spacer(Modifier.height(32.dp))
-        Text("Title", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color.Black)
-        OutlinedTextField(
-            value = name, onValueChange = onNameChange, placeholder = { Text("Enter item title", color = MutedFgLight) },
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp), shape = RoundedCornerShape(14.dp),
-            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Ocean, unfocusedBorderColor = BorderLight, unfocusedContainerColor = SurfaceLight, focusedContainerColor = SurfaceLight, focusedTextColor = Color.Black, unfocusedTextColor = Color.Black)
-        )
-        Spacer(Modifier.height(32.dp))
-        Text("Category", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color.Black)
-        Spacer(Modifier.height(12.dp))
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            val categories = listOf("Electronics" to Icons.Default.CameraAlt, "Sports" to Icons.AutoMirrored.Filled.DirectionsBike, "Tools" to Icons.Default.Build, "Outdoors" to Icons.Default.Terrain, "Vehicles" to Icons.Default.DirectionsCar, "Music" to Icons.Default.MusicNote, "Gaming" to Icons.Default.Gamepad)
-            categories.forEach { (cat, icon) ->
-                val selected = category == cat
-                Surface(
-                    onClick = { onCatChange(cat) },
-                    shape = RoundedCornerShape(24.dp),
-                    border = BorderStroke(1.dp, if (selected) Ocean else BorderLight),
-                    color = if (selected) Ocean.copy(alpha = 0.1f) else SurfaceLight
-                ) {
-                    Row(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(icon, null, modifier = Modifier.size(18.dp), tint = if (selected) Ocean else MutedFgLight)
-                        Spacer(Modifier.width(8.dp))
-                        Text(cat, color = if (selected) Ocean else Color.Black, fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal, fontSize = 14.sp)
+                item {
+                    Box(modifier = Modifier.aspectRatio(1f).clip(RoundedCornerShape(12.dp)).background(MutedLight).clickable { onAdd() }, contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Add, null, tint = Ocean, modifier = Modifier.size(32.dp))
                     }
                 }
             }
         }
-        Spacer(Modifier.height(32.dp))
-        Text("Description", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color.Black)
-        OutlinedTextField(
-            value = desc, onValueChange = onDescChange, placeholder = { Text("Enter item description", color = MutedFgLight) },
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp).height(120.dp), shape = RoundedCornerShape(14.dp),
-            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Ocean, unfocusedBorderColor = BorderLight, unfocusedContainerColor = SurfaceLight, focusedContainerColor = SurfaceLight, focusedTextColor = Color.Black, unfocusedTextColor = Color.Black)
-        )
     }
 }
 
 @Composable
-fun PriceStep(rent: String, onRentChange: (String) -> Unit, security: String, onSecurityChange: (String) -> Unit) {
+fun DetailsStep(name: String, onName: (String) -> Unit, category: String, onCategory: (String) -> Unit, desc: String, onDesc: (String) -> Unit) {
     Column {
-        Text("Set your price", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color.Black)
-        Spacer(Modifier.height(32.dp))
-        Text("Price per day (₹)", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color.Black)
-        OutlinedTextField(
-            value = rent, onValueChange = { if (it.all { c -> c.isDigit() }) onRentChange(it) }, placeholder = { Text("Enter amount", color = MutedFgLight) },
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp), shape = RoundedCornerShape(14.dp), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Ocean, unfocusedBorderColor = BorderLight, unfocusedContainerColor = SurfaceLight, focusedContainerColor = SurfaceLight, focusedTextColor = Color.Black, unfocusedTextColor = Color.Black)
-        )
-        Spacer(Modifier.height(32.dp))
-        Text("Security deposit (₹)", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color.Black)
-        OutlinedTextField(
-            value = security, onValueChange = { if (it.all { c -> c.isDigit() }) onSecurityChange(it) }, placeholder = { Text("Enter amount", color = MutedFgLight) },
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp), shape = RoundedCornerShape(14.dp), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Ocean, unfocusedBorderColor = BorderLight, unfocusedContainerColor = SurfaceLight, focusedContainerColor = SurfaceLight, focusedTextColor = Color.Black, unfocusedTextColor = Color.Black)
-        )
+        Text("What are you listing?", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+        Spacer(Modifier.height(24.dp))
+        
+        Text("Item Name", fontWeight = FontWeight.Bold, color = Color.Black)
+        OutlinedTextField(value = name, onValueChange = onName, modifier = Modifier.fillMaxWidth(), placeholder = { Text("e.g. Canon EOS R5") }, shape = RoundedCornerShape(12.dp))
+        
+        Spacer(Modifier.height(16.dp))
+        
+        Text("Category", fontWeight = FontWeight.Bold, color = Color.Black)
+        // Basic category selection
+        val categories = listOf("Electronics", "Vehicles", "Sports", "Appliances", "Tools")
+        Row(modifier = Modifier.horizontalScroll(rememberScrollState()).padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            categories.forEach { cat ->
+                FilterChip(selected = category == cat, onClick = { onCategory(cat) }, label = { Text(cat) }, shape = RoundedCornerShape(20.dp))
+            }
+        }
+        
+        Spacer(Modifier.height(16.dp))
+        
+        Text("Description", fontWeight = FontWeight.Bold, color = Color.Black)
+        OutlinedTextField(value = desc, onValueChange = onDesc, modifier = Modifier.fillMaxWidth().height(150.dp), placeholder = { Text("Describe the item condition and features...") }, shape = RoundedCornerShape(12.dp))
     }
 }
 
 @Composable
-fun LocationStep(
-    address: String, 
-    cameraPositionState: com.google.maps.android.compose.CameraPositionState,
-    markerState: com.google.maps.android.compose.MarkerState,
-    onAddressChange: (String) -> Unit, 
-    onMapClick: (LatLng) -> Unit,
-    onUseCurrent: () -> Unit
-) {
+fun PriceStep(rent: String, onRent: (String) -> Unit, security: String, onSecurity: (String) -> Unit) {
     Column {
-        Text("Set pickup location", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color.Black)
-        Text("Choose where renters can pick up the item.", color = MutedFgLight, fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp))
-        Spacer(Modifier.height(32.dp))
-        Box(modifier = Modifier.fillMaxWidth().height(240.dp).clip(RoundedCornerShape(20.dp)).background(MutedLight)) {
+        Text("Set your pricing", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+        Text("Users pay rent daily.", color = Color.Gray)
+        Spacer(Modifier.height(24.dp))
+        
+        Text("Rent per Day (₹)", fontWeight = FontWeight.Bold, color = Color.Black)
+        OutlinedTextField(value = rent, onValueChange = onRent, modifier = Modifier.fillMaxWidth(), placeholder = { Text("0.00") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), shape = RoundedCornerShape(12.dp))
+        
+        Spacer(Modifier.height(24.dp))
+        
+        Text("Security Deposit (₹)", fontWeight = FontWeight.Bold, color = Color.Black)
+        OutlinedTextField(value = security, onValueChange = onSecurity, modifier = Modifier.fillMaxWidth(), placeholder = { Text("Optional") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), shape = RoundedCornerShape(12.dp))
+    }
+}
+
+@Composable
+fun LocationStep(address: String, cameraPositionState: CameraPositionState, markerState: MarkerState, onAddressChange: (String) -> Unit, onMapClick: (LatLng) -> Unit, onUseCurrent: () -> Unit) {
+    Column {
+        Text("Where is it located?", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+        Spacer(Modifier.height(16.dp))
+        
+        OutlinedTextField(
+            value = address, 
+            onValueChange = onAddressChange, 
+            modifier = Modifier.fillMaxWidth(), 
+            placeholder = { Text("Street address, City, Area") }, 
+            trailingIcon = { IconButton(onClick = onUseCurrent) { Icon(Icons.Outlined.MyLocation, null, tint = Ocean) } },
+            shape = RoundedCornerShape(12.dp)
+        )
+        
+        Spacer(Modifier.height(16.dp))
+        
+        Box(modifier = Modifier.fillMaxWidth().height(300.dp).clip(RoundedCornerShape(16.dp)).border(1.dp, MutedLight, RoundedCornerShape(16.dp))) {
             GoogleMap(modifier = Modifier.fillMaxSize(), cameraPositionState = cameraPositionState, onMapClick = onMapClick, uiSettings = MapUiSettings(zoomControlsEnabled = false)) {
                 if (markerState.position.latitude != 0.0) Marker(state = markerState)
             }
         }
-        Spacer(Modifier.height(24.dp))
-        OutlinedTextField(
-            value = address, onValueChange = onAddressChange, placeholder = { Text("Enter address", color = MutedFgLight) },
-            leadingIcon = { Icon(Icons.Default.LocationOn, null, tint = Ocean, modifier = Modifier.size(20.dp)) },
-            trailingIcon = { IconButton(onClick = onUseCurrent) { Icon(Icons.Outlined.MyLocation, null, tint = Ocean, modifier = Modifier.size(20.dp)) } },
-            modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
-            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Ocean, unfocusedBorderColor = BorderLight, unfocusedContainerColor = SurfaceLight, focusedContainerColor = SurfaceLight, focusedTextColor = Color.Black, unfocusedTextColor = Color.Black)
-        )
-        Spacer(Modifier.height(16.dp))
-        Text("Tap on the map to set location", color = Ocean, fontWeight = FontWeight.SemiBold, modifier = Modifier.align(Alignment.CenterHorizontally))
+        Spacer(Modifier.height(8.dp))
+        Text("Tap on the map to set location exactly", fontSize = 12.sp, color = Color.Gray)
     }
 }
 
@@ -469,18 +469,15 @@ fun LocationStep(
 fun ImageSourceDialog(onDismiss: () -> Unit, onGallery: () -> Unit, onCamera: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = SurfaceLight,
-        title = { Text("Add Photo", fontWeight = FontWeight.Bold, color = Color.Black) },
-        text = { Text("Choose a source for your product photo", color = Color.Black) },
-        confirmButton = { TextButton(onClick = { onDismiss(); onGallery() }) { Text("Gallery", color = Ocean) } },
-        dismissButton = { TextButton(onClick = { onDismiss(); onCamera() }) { Text("Camera", color = Ocean) } }
+        confirmButton = {},
+        dismissButton = {},
+        title = { Text("Select Image Source", fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                ListItem(headlineContent = { Text("Gallery") }, leadingContent = { Icon(Icons.Default.PhotoLibrary, null) }, modifier = Modifier.clickable { onGallery(); onDismiss() })
+                ListItem(headlineContent = { Text("Camera") }, leadingContent = { Icon(Icons.Default.PhotoCamera, null) }, modifier = Modifier.clickable { onCamera(); onDismiss() })
+            }
+        },
+        containerColor = SurfaceLight
     )
 }
-
-fun Modifier.drawDashedBorder(color: Color, cornerRadius: androidx.compose.ui.unit.Dp) = this.then(
-    Modifier.drawWithContent {
-        drawContent()
-        val stroke = Stroke(width = 2f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f))
-        drawRoundRect(color = color, style = stroke, cornerRadius = androidx.compose.ui.geometry.CornerRadius(cornerRadius.toPx()))
-    }
-)

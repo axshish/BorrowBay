@@ -1,86 +1,130 @@
 package com.example.borrowbay.features.auth.viewmodel
 
+import android.app.Activity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.borrowbay.core.supabase
-import io.github.jan.supabase.auth.auth
-import io.github.jan.supabase.auth.providers.Google
-import io.github.jan.supabase.auth.providers.builtin.Email
-import io.github.jan.supabase.auth.providers.builtin.OTP
-import io.github.jan.supabase.auth.OtpType
+import com.google.firebase.FirebaseException
+import com.google.firebase.auth.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import java.util.concurrent.TimeUnit
 
 class AuthViewModel : ViewModel() {
 
+    private val auth = FirebaseAuth.getInstance()
     private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
 
-    fun signInWithEmail(emailAddress: String) {
+    private var verificationId: String? = null
+
+    init {
+        auth.addAuthStateListener { firebaseAuth ->
+            if (firebaseAuth.currentUser != null) {
+                _authState.value = AuthState.Authenticated
+            } else {
+                _authState.value = AuthState.Idle
+            }
+        }
+    }
+
+    fun signInWithGoogle(idToken: String) {
         viewModelScope.launch {
             _authState.value = AuthState.Loading
             try {
-                supabase.auth.signInWith(
-                    provider = Email,
-                    redirectUrl = "borrowbay://login"
-                ) {
-                    email = emailAddress
+                val credential = GoogleAuthProvider.getCredential(idToken, null)
+                auth.signInWithCredential(credential).await()
+                _authState.value = AuthState.Authenticated
+            } catch (e: Exception) {
+                _authState.value = AuthState.Error(e.localizedMessage ?: "Google Sign-In failed")
+            }
+        }
+    }
+
+    fun signInWithEmail(email: String, password: String) {
+        viewModelScope.launch {
+            _authState.value = AuthState.Loading
+            try {
+                auth.signInWithEmailAndPassword(email, password).await()
+                _authState.value = AuthState.Authenticated
+            } catch (e: Exception) {
+                if (e is FirebaseAuthInvalidUserException) {
+                    // If user doesn't exist, try to sign them up instead
+                    signUpWithEmail(email, password)
+                } else {
+                    _authState.value = AuthState.Error(e.localizedMessage ?: "Email sign-in failed")
                 }
-                _authState.value = AuthState.Success("Check your email for the login link!")
-            } catch (e: Exception) {
-                _authState.value = AuthState.Error(e.localizedMessage ?: "Unknown error occurred")
             }
         }
     }
 
-    fun signInWithGoogle() {
+    private fun signUpWithEmail(email: String, password: String) {
         viewModelScope.launch {
-            _authState.value = AuthState.Loading
             try {
-                supabase.auth.signInWith(
-                    provider = Google,
-                    redirectUrl = "borrowbay://login"
-                )
-                _authState.value = AuthState.Success("Redirecting to Google...")
+                auth.createUserWithEmailAndPassword(email, password).await()
+                _authState.value = AuthState.Authenticated
             } catch (e: Exception) {
-                _authState.value = AuthState.Error(e.localizedMessage ?: "Unknown error occurred")
+                _authState.value = AuthState.Error(e.localizedMessage ?: "Email sign-up failed")
             }
         }
     }
 
-    fun signInWithPhone(phoneNumber: String) {
+    fun signInWithPhone(phoneNumber: String, activity: Activity) {
         viewModelScope.launch {
             _authState.value = AuthState.Loading
-            try {
-                supabase.auth.signInWith(OTP) {
-                    phone = phoneNumber
+            
+            val callbacks = object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
+                override fun onVerificationCompleted(credential: PhoneAuthCredential) {
+                    viewModelScope.launch {
+                        try {
+                            auth.signInWithCredential(credential).await()
+                            _authState.value = AuthState.Authenticated
+                        } catch (e: Exception) {
+                            _authState.value = AuthState.Error(e.localizedMessage ?: "Sign in failed")
+                        }
+                    }
                 }
-                _authState.value = AuthState.OtpSent(phoneNumber)
-            } catch (e: Exception) {
-                _authState.value = AuthState.Error(e.localizedMessage ?: "Unknown error occurred")
+
+                override fun onVerificationFailed(e: FirebaseException) {
+                    _authState.value = AuthState.Error(e.localizedMessage ?: "Verification failed")
+                }
+
+                override fun onCodeSent(id: String, token: PhoneAuthProvider.ForceResendingToken) {
+                    verificationId = id
+                    _authState.value = AuthState.OtpSent(phoneNumber)
+                }
             }
+
+            val options = PhoneAuthOptions.newBuilder(auth)
+                .setPhoneNumber(phoneNumber)
+                .setTimeout(60L, TimeUnit.SECONDS)
+                .setActivity(activity)
+                .setCallbacks(callbacks)
+                .build()
+            PhoneAuthProvider.verifyPhoneNumber(options)
         }
     }
 
-    fun verifyOtp(phoneNumber: String, otpCode: String) {
+    fun verifyOtp(otpCode: String) {
+        val id = verificationId ?: return
         viewModelScope.launch {
             _authState.value = AuthState.Loading
             try {
-                // In Supabase v3, verifying phone OTP uses verifyPhoneOtp
-                supabase.auth.verifyPhoneOtp(
-                    type = OtpType.Phone.SMS,
-                    phone = phoneNumber,
-                    token = otpCode
-                )
+                val credential = PhoneAuthProvider.getCredential(id, otpCode)
+                auth.signInWithCredential(credential).await()
                 _authState.value = AuthState.Authenticated
             } catch (e: Exception) {
                 _authState.value = AuthState.Error(e.localizedMessage ?: "Invalid OTP")
             }
         }
     }
-    
+
+    fun setErrorMessage(message: String) {
+        _authState.value = AuthState.Error(message)
+    }
+
     fun resetState() {
         _authState.value = AuthState.Idle
     }

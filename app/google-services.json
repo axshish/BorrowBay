@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "153761461660",
+    "firebase_url": "https://borrowbay-9619d-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "borrowbay-9619d",
+    "storage_bucket": "borrowbay-9619d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:153761461660:android:a3e5f19ad3a8da95e64459",
+        "android_client_info": {
+          "package_name": "com.example.borrowbay"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "153761461660-496v7i8sct03oj6lk3qfl2dhl1qvfn60.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.borrowbay",
+            "certificate_hash": "f6b4e29f8a1c11c5934ce19ad6df3dc073933697"
+          }
+        },
+        {
+          "client_id": "153761461660-jno66j77rn1gt0aq7gv95daobk82nrl5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCnF333q0MKqUigMKXmh49DBhvfHVOUXNk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "153761461660-jno66j77rn1gt0aq7gv95daobk82nrl5.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

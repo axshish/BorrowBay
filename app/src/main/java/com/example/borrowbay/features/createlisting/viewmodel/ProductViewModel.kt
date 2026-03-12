@@ -1,33 +1,32 @@
-package com.example.borrowbay.viewmodel
+package com.example.borrowbay.features.createlisting.viewmodel
 
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-// import com.example.borrowbay.SupabaseClient
-// import com.example.borrowbay.data.models.Product
-// import io.github.jan.supabase.gotrue.auth
-// import io.github.jan.supabase.postgrest.postgrest
-// import io.github.jan.supabase.storage.storage
+import com.example.borrowbay.core.supabase
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import io.github.jan.supabase.storage.storage
 import kotlinx.coroutines.launch
 import java.util.UUID
 
 sealed class ListingUiState {
-    object Idle : ListingUiState()
-    object Loading : ListingUiState()
-    object Success : ListingUiState()
-    object BankDetailsMissing : ListingUiState()
+    data object Idle : ListingUiState()
+    data object Loading : ListingUiState()
+    data object Success : ListingUiState()
+    data object BankDetailsMissing : ListingUiState()
     data class Error(val msg: String) : ListingUiState()
 }
 
 class ProductViewModel : ViewModel() {
-    // private val client = SupabaseClient.client
+    private val firestore = FirebaseFirestore.getInstance()
+    private val auth = FirebaseAuth.getInstance()
     
     private val _listingState = mutableStateOf<ListingUiState>(ListingUiState.Idle)
     val listingState: State<ListingUiState> = _listingState
 
     fun checkBankDetailsAndInitialize() {
-        // Mocking behavior for UI testing
         _listingState.value = ListingUiState.Idle
     }
 
@@ -45,38 +44,41 @@ class ProductViewModel : ViewModel() {
         viewModelScope.launch {
             _listingState.value = ListingUiState.Loading
             try {
-                /*
-                val currentUser = client.auth.currentUserOrNull()
-                
-                if (currentUser != null) {
-                    val imageUrls = mutableListOf<String>()
-                    val bucket = client.storage.from("products")
-                    
-                    imageByteLists.forEach { bytes ->
-                        val fileName = "${UUID.randomUUID()}.jpg"
-                        bucket.upload(fileName, bytes)
-                        imageUrls.add(bucket.publicUrl(fileName))
-                    }
-
-                    val product = Product(
-                        name = name,
-                        category = category,
-                        description = description,
-                        rentAmount = rentAmount,
-                        securityDeposit = securityDeposit,
-                        imageUrls = imageUrls,
-                        address = address,
-                        latitude = lat,
-                        longitude = lng,
-                        sellerId = currentUser.id,
-                        sellerEmail = currentUser.email ?: ""
-                    )
-
-                    client.postgrest["products"].insert(product)
+                val currentUser = auth.currentUser
+                if (currentUser == null) {
+                    _listingState.value = ListingUiState.Error("User not authenticated")
+                    return@launch
                 }
-                */
-                // Simulate network delay
-                kotlinx.coroutines.delay(1500)
+
+                val imageUrls = mutableListOf<String>()
+                val bucket = supabase.storage.from("products")
+                
+                // Upload images to Supabase Storage
+                imageByteLists.forEach { bytes ->
+                    val fileName = "${UUID.randomUUID()}.jpg"
+                    bucket.upload(fileName, bytes)
+                    imageUrls.add(bucket.publicUrl(fileName))
+                }
+
+                // Save product details to Firebase Firestore
+                val product = hashMapOf(
+                    "name" to name,
+                    "category" to category,
+                    "description" to description,
+                    "rentAmount" to rentAmount,
+                    "securityDeposit" to securityDeposit,
+                    "imageUrls" to imageUrls,
+                    "address" to address,
+                    "latitude" to lat,
+                    "longitude" to lng,
+                    "sellerId" to currentUser.uid,
+                    "sellerEmail" to (currentUser.email ?: ""),
+                    "createdAt" to com.google.firebase.Timestamp.now()
+                )
+
+                firestore.collection("products")
+                    .add(product)
+                
                 _listingState.value = ListingUiState.Success
 
             } catch (e: Exception) {
