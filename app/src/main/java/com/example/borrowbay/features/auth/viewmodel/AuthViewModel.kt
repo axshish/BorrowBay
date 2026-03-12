@@ -22,7 +22,10 @@ class AuthViewModel : ViewModel() {
         viewModelScope.launch {
             _authState.value = AuthState.Loading
             try {
-                supabase.auth.signInWith(Email) {
+                supabase.auth.signInWith(
+                    provider = Email,
+                    redirectUrl = "borrowbay://login"
+                ) {
                     email = emailAddress
                 }
                 _authState.value = AuthState.Success("Check your email for the login link!")
@@ -36,7 +39,10 @@ class AuthViewModel : ViewModel() {
         viewModelScope.launch {
             _authState.value = AuthState.Loading
             try {
-                supabase.auth.signInWith(Google)
+                supabase.auth.signInWith(
+                    provider = Google,
+                    redirectUrl = "borrowbay://login"
+                )
                 _authState.value = AuthState.Success("Redirecting to Google...")
             } catch (e: Exception) {
                 _authState.value = AuthState.Error(e.localizedMessage ?: "Unknown error occurred")
