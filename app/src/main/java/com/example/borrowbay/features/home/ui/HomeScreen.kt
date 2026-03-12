@@ -6,14 +6,20 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.PersonOutline
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.borrowbay.features.home.ui.components.*
 import com.example.borrowbay.features.home.viewmodel.HomeViewModel
 
 @Composable
@@ -41,97 +47,150 @@ fun HomeScreen(
         },
         floatingActionButtonPosition = FabPosition.Center
     ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            item {
-                HomeHeader(location = uiState.userLocation)
-            }
+        Box(modifier = Modifier.padding(paddingValues)) {
+            if (uiState.isLoading) {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 24.dp)
+                ) {
+                    // 1. Header
+                    item {
+                        HomeHeader(
+                            location = uiState.userLocation,
+                            onFilterClick = { /* TODO */ }
+                        )
+                    }
 
-            item {
-                CategoryRow(
-                    categories = uiState.categories,
-                    selectedCategoryId = uiState.selectedCategory,
-                    onCategorySelected = { viewModel.onCategorySelected(it) }
-                )
-            }
+                    // 2. Category Row
+                    item {
+                        CategoryRow(
+                            categories = uiState.categories,
+                            selectedCategoryId = uiState.selectedCategory,
+                            onCategorySelected = { viewModel.onCategorySelected(it) }
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
 
-            item {
-                Column {
-                    SectionHeader(
-                        title = "Nearby rentals",
-                        onSeeAllClick = { /* TODO */ }
-                    )
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(uiState.nearbyRentals) { item ->
-                            RentalCard(item = item)
+                    // 3. Nearby Rentals Section
+                    item {
+                        SectionHeader(
+                            title = "Nearby rentals",
+                            onSeeAllClick = { /* TODO */ }
+                        )
+                    }
+
+                    // Grid layout for Nearby
+                    val nearbyRows = uiState.nearbyRentals.chunked(2)
+                    items(nearbyRows) { rowItems ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            rowItems.forEach { item ->
+                                RentalCard(
+                                    item = item,
+                                    modifier = Modifier.weight(1f),
+                                    onClick = { /* TODO */ }
+                                )
+                            }
+                            if (rowItems.size < 2) {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
+                        }
+                    }
+
+                    // 4. Trending Section (Matching Reference Image)
+                    item {
+                        Spacer(modifier = Modifier.height(32.dp))
+                        SectionHeader(
+                            title = "Trending now",
+                            onSeeAllClick = { /* TODO */ }
+                        )
+                        LazyRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(horizontal = 20.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            items(uiState.trendingRentals) { item ->
+                                RentalCard(
+                                    item = item,
+                                    modifier = Modifier.width(240.dp),
+                                    onClick = { /* TODO */ }
+                                )
+                            }
                         }
                     }
                 }
-            }
-
-            item {
-                Column {
-                    SectionHeader(
-                        title = "Trending now",
-                        onSeeAllClick = { /* TODO */ }
-                    )
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(uiState.trendingRentals) { item ->
-                            RentalCard(item = item)
-                        }
-                    }
-                }
-            }
-
-            item {
-                Spacer(modifier = Modifier.height(80.dp))
             }
         }
     }
 }
 
 @Composable
-fun BottomNavigationBar(onProfileClick: () -> Unit) {
+fun BottomNavigationBar(
+    onHomeClick: () -> Unit,
+    onAddClick: () -> Unit,
+    onProfileClick: () -> Unit
+) {
     NavigationBar(
         containerColor = MaterialTheme.colorScheme.surface,
         tonalElevation = 8.dp
     ) {
-        NavigationBarItem(
-            icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
-            label = { Text("Home") },
-            selected = true,
-            onClick = { }
+        val items = listOf(
+            BottomNavItem("Home", Icons.Default.Home, onHomeClick, true),
+            BottomNavItem("Add", Icons.Default.Add, onAddClick, false, isFab = true),
+            BottomNavItem("Profile", Icons.Default.PersonOutline, onProfileClick, false)
         )
-        NavigationBarItem(
-            icon = { Icon(Icons.Default.Search, contentDescription = "Search") },
-            label = { Text("Search") },
-            selected = false,
-            onClick = { }
-        )
-        
-        Spacer(modifier = Modifier.weight(1f))
-        
-        NavigationBarItem(
-            icon = { Icon(Icons.Default.Chat, contentDescription = "Chat") },
-            label = { Text("Chat") },
-            selected = false,
-            onClick = { }
-        )
-        NavigationBarItem(
-            icon = { Icon(Icons.Default.Person, contentDescription = "Profile") },
-            label = { Text("Profile") },
-            selected = false,
-            onClick = onProfileClick
-        )
+
+        items.forEach { item ->
+            if (item.isFab) {
+                NavigationBarItem(
+                    selected = false,
+                    onClick = item.onClick,
+                    icon = {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = item.icon,
+                                    contentDescription = item.label,
+                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
+                    },
+                    label = { Text(item.label) }
+                )
+            } else {
+                NavigationBarItem(
+                    selected = item.isSelected,
+                    onClick = item.onClick,
+                    icon = { Icon(item.icon, contentDescription = item.label) },
+                    label = { Text(item.label) }
+                )
+            }
+        }
     }
+}
+
+private data class BottomNavItem(
+    val label: String,
+    val icon: ImageVector,
+    val onClick: () -> Unit,
+    val isSelected: Boolean,
+    val isFab: Boolean = false
+)
+
+@Preview(showBackground = true)
+@Composable
+fun HomeScreenPreview() {
+    HomeScreen()
 }

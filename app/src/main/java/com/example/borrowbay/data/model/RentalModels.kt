@@ -8,6 +8,8 @@ data class RentalItem(
     val name: String,
     val description: String? = null,
     val pricePerDay: Double,
+    val distance: Double = 0.0,
+    val rating: Double = 0.0,
     val location: String,
     val imageUrls: List<String> = emptyList(), // List of images, 0th is the main image
     val isAvailable: Boolean = true,
@@ -28,5 +30,6 @@ data class Owner(
 @Serializable
 data class Category(
     val id: String,
-    val name: String
+    val name: String,
+    val icon: String? = null // Emoji or icon name
 )

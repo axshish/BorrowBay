@@ -2,6 +2,7 @@ package com.example.borrowbay.data.repository
 
 import com.google.firebase.firestore.FirebaseFirestore
 import com.example.borrowbay.data.model.Category
+import com.example.borrowbay.data.model.Owner
 import com.example.borrowbay.data.model.RentalItem
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow

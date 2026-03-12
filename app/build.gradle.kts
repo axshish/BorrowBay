@@ -79,6 +79,10 @@ dependencies {
     implementation(libs.ktor.client.okhttp)
     implementation(libs.androidx.compose.foundation)
 
+    // Location & Maps
+    implementation(libs.play.services.location)
+    implementation(libs.maps.compose)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
