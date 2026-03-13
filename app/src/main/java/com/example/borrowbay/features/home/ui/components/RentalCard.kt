@@ -30,16 +30,16 @@ fun RentalCard(
         modifier = modifier.padding(bottom = 16.dp),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp), // Added slight elevation for better visibility
         onClick = onClick
     ) {
-        Column {
+        Column(modifier = Modifier.padding(8.dp)) { // Added inner padding to the whole card
             // Image Section with rounded corners
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(1f) // Square image as per reference
-                    .clip(RoundedCornerShape(24.dp))
+                    .aspectRatio(1f)
+                    .clip(RoundedCornerShape(20.dp))
                     .background(Color(0xFFF5F5F5))
             ) {
                 AsyncImage(
@@ -52,15 +52,15 @@ fun RentalCard(
                 // Availability Badge
                 Surface(
                     modifier = Modifier
-                        .padding(12.dp)
+                        .padding(10.dp)
                         .align(Alignment.TopStart),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(10.dp),
                     color = if (item.isAvailable) Emerald.copy(alpha = 0.9f) else Color.Gray.copy(alpha = 0.9f)
                 ) {
                     Text(
                         text = if (item.isAvailable) "Available" else "Rented",
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                        fontSize = 10.sp,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
                     )
@@ -68,7 +68,7 @@ fun RentalCard(
             }
 
             // Info Section
-            Column(modifier = Modifier.padding(vertical = 12.dp)) {
+            Column(modifier = Modifier.padding(top = 12.dp, start = 4.dp, end = 4.dp)) {
                 Text(
                     text = item.name,
                     fontWeight = FontWeight.Bold,
@@ -111,20 +111,31 @@ fun RentalCard(
 
                 // Owner Info
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(20.dp)
-                            .background(Color(0xFFEEEEEE), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = item.owner?.name?.take(2)?.uppercase() ?: "??",
-                            fontSize = 8.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.Gray
+                    if (!item.owner?.avatarUrl.isNullOrBlank()) {
+                        AsyncImage(
+                            model = item.owner?.avatarUrl,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(CircleShape),
+                            contentScale = ContentScale.Crop
                         )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .background(Color(0xFFEEEEEE), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = (item.owner?.name ?: "??").take(2).uppercase(),
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Gray
+                            )
+                        }
                     }
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = item.owner?.name ?: "Unknown",
                         fontSize = 12.sp,

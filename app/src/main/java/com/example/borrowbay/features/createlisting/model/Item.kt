@@ -1,6 +1,7 @@
 package com.example.borrowbay.features.createlisting.model
 
 import kotlinx.serialization.Serializable
+import com.example.borrowbay.data.model.Owner
 
 @Serializable
 data class Item(
@@ -17,5 +18,6 @@ data class Item(
     val ownerId: String = "",
     val sellerEmail: String = "",
     val sellerPhone: String? = null,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    val owner: Owner? = null // Added owner details for better rendering on Home Screen
 )

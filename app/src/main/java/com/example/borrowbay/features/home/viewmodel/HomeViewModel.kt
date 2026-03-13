@@ -14,6 +14,7 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -53,26 +54,23 @@ class HomeViewModel(
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
     private val auth = FirebaseAuth.getInstance()
-    private var lastVisibleGlobalDoc: Any? = null // For pagination
+    private var lastVisibleGlobalDoc: Any? = null
+    
+    private var nearbyJob: Job? = null
+    private var categoriesJob: Job? = null
 
     init {
-        // Only load data from database, removed seedTestData()
-        viewModelScope.launch {
-            loadInitialData()
-            fetchUserData()
-        }
+        loadCategories()
+        fetchUserData()
     }
 
-    private fun loadInitialData() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
-            
-            // Load Categories
+    private fun loadCategories() {
+        categoriesJob?.cancel()
+        categoriesJob = viewModelScope.launch {
             rentalRepository.getCategories().collect { categories ->
                 _uiState.update { it.copy(categories = categories) }
             }
         }
-        refreshNearbyAndGlobal()
     }
 
     private fun fetchUserData() {
@@ -87,6 +85,7 @@ class HomeViewModel(
                         userLongitude = user.longitude,
                         userRazorpayId = user.razorpayId
                     ) }
+                    // After we have user location, refresh items
                     refreshNearbyAndGlobal()
                 }
             } catch (e: Exception) {
@@ -173,7 +172,9 @@ class HomeViewModel(
     }
 
     private fun refreshNearbyAndGlobal() {
-        viewModelScope.launch {
+        // Start nearby collection in a separate job so it doesn't block global load
+        nearbyJob?.cancel()
+        nearbyJob = viewModelScope.launch {
             val state = _uiState.value
             rentalRepository.getNearbyRentals(
                 lat = state.userLatitude,
@@ -184,25 +185,28 @@ class HomeViewModel(
             ).collect { nearby ->
                 _uiState.update { it.copy(nearbyRentals = nearby, isLoading = false) }
             }
-
-            lastVisibleGlobalDoc = null
-            _uiState.update { it.copy(hasMoreGlobal = true) }
-            loadMoreGlobal()
         }
+
+        // Reset and reload global list
+        lastVisibleGlobalDoc = null
+        _uiState.update { it.copy(hasMoreGlobal = true, globalRentals = emptyList()) }
+        loadMoreGlobal()
     }
 
     fun loadMoreGlobal() {
-        if (_uiState.value.isLoadingMore || !_uiState.value.hasMoreGlobal) return
+        val state = _uiState.value
+        if (state.isLoadingMore || !state.hasMoreGlobal) return
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoadingMore = true) }
-            val state = _uiState.value
             
             val result = rentalRepository.getGlobalRentals(
-                category = state.selectedCategory,
-                query = state.searchQuery,
-                sort = state.selectedSort,
-                limit = 5,
+                lat = _uiState.value.userLatitude,
+                lng = _uiState.value.userLongitude,
+                category = _uiState.value.selectedCategory,
+                query = _uiState.value.searchQuery,
+                sort = _uiState.value.selectedSort,
+                limit = 10,
                 lastDoc = lastVisibleGlobalDoc
             )
 

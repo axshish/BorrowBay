@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Geocoder
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
@@ -35,6 +36,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -147,7 +149,7 @@ fun HomeScreen(
                 // Nearby Grid
                 if (uiState.nearbyRentals.isNotEmpty()) {
                     item {
-                        SectionHeader("Nearby rentals", "In your city")
+                        SectionHeader("Nearby rentals", "Within 10km radius")
                     }
                     val rows = uiState.nearbyRentals.chunked(2)
                     items(rows) { rowItems ->
@@ -164,7 +166,7 @@ fun HomeScreen(
                 } else if (!uiState.isLoading) {
                     item {
                         Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                            Text("No rentals found nearby", color = Color.Gray)
+                            Text("No rentals found nearby (10km)", color = Color.Gray)
                         }
                     }
                 }
@@ -216,6 +218,16 @@ fun HomeScreen(
             onDismiss = { viewModel.showRazorpaySetup(false) },
             onSave = { id -> viewModel.saveRazorpayId(id) }
         )
+    }
+}
+
+private fun simplifyAddress(address: String): String {
+    // Basic logic to extract City and State from a full address string
+    val parts = address.split(",")
+    return if (parts.size >= 3) {
+        "${parts[parts.size - 3].trim()}, ${parts[parts.size - 2].trim()}"
+    } else {
+        address
     }
 }
 
@@ -411,7 +423,7 @@ fun GlobalRentalItem(item: RentalItem) {
             Spacer(Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(item.name, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.Black)
-                Text(item.location, fontSize = 12.sp, color = Color.Gray)
+                Text(simplifyAddress(item.location), fontSize = 12.sp, color = Color.Gray)
                 Spacer(Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("₹${item.pricePerDay.toInt()}", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = Ocean)
