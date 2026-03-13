@@ -184,7 +184,8 @@ class HomeViewModel(
     }
 
     private fun refreshNearbyAndGlobal() {
-        // Collect nearby in a way that we can wait for the first emission if needed
+        val currentUserId = auth.currentUser?.uid
+        
         nearbyJob?.cancel()
         nearbyJob = viewModelScope.launch {
             val state = _uiState.value
@@ -193,13 +194,13 @@ class HomeViewModel(
                 lng = state.userLongitude,
                 category = state.selectedCategory,
                 query = state.searchQuery,
-                sort = state.selectedSort
+                sort = state.selectedSort,
+                excludeUserId = currentUserId
             ).collect { nearby ->
                 _uiState.update { it.copy(nearbyRentals = nearby, isLoading = false) }
             }
         }
 
-        // Reset and reload global list
         lastVisibleGlobalDoc = null
         _uiState.update { it.copy(hasMoreGlobal = true, globalRentals = emptyList()) }
         loadMoreGlobal()
@@ -208,6 +209,8 @@ class HomeViewModel(
     fun loadMoreGlobal() {
         val state = _uiState.value
         if (state.isLoadingMore || !state.hasMoreGlobal) return
+
+        val currentUserId = auth.currentUser?.uid
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoadingMore = true) }
@@ -219,7 +222,8 @@ class HomeViewModel(
                 query = _uiState.value.searchQuery,
                 sort = _uiState.value.selectedSort,
                 limit = 10,
-                lastDoc = lastVisibleGlobalDoc
+                lastDoc = lastVisibleGlobalDoc,
+                excludeUserId = currentUserId
             )
 
             _uiState.update { it.copy(

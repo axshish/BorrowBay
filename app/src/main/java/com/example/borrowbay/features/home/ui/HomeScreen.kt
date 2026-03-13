@@ -3,11 +3,9 @@ package com.example.borrowbay.features.home.ui
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Geocoder
 import android.util.Log
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
@@ -26,7 +24,6 @@ import androidx.compose.material.icons.outlined.MyLocation
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,7 +33,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -196,6 +192,12 @@ fun HomeScreen(
                                 .clip(RoundedCornerShape(20.dp))
                                 .shimmerLoadingAnimation()
                         )
+                    }
+                } else if (uiState.globalRentals.isEmpty() && !uiState.isLoading) {
+                    item {
+                        Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                            Text("No items found in marketplace.", color = Color.Gray)
+                        }
                     }
                 } else {
                     items(uiState.globalRentals) { item ->
@@ -525,8 +527,8 @@ fun LocationPickerDialog(
     val scope = rememberCoroutineScope()
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
     
-    var selectedLat by remember { mutableStateOf(initialLat ?: 0.0) }
-    var selectedLng by remember { mutableStateOf(initialLng ?: 0.0) }
+    var selectedLat by remember { mutableDoubleStateOf(initialLat ?: 0.0) }
+    var selectedLng by remember { mutableDoubleStateOf(initialLng ?: 0.0) }
     var currentAddress by remember { mutableStateOf("") }
     
     var suggestions by remember { mutableStateOf<List<android.location.Address>>(emptyList()) }
@@ -592,7 +594,7 @@ fun LocationPickerDialog(
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(modifier = Modifier.fillMaxSize(), color = Color.White) {
             Column {
-                TopAppBar(
+                CenterAlignedTopAppBar(
                     title = { Text("Set Location") },
                     navigationIcon = { IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, null) } },
                     actions = { 

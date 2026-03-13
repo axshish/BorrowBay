@@ -20,6 +20,8 @@ data class ProductDetailUiState(
     val userLatitude: Double? = null,
     val userLongitude: Double? = null,
     val isLoading: Boolean = false,
+    val isRenting: Boolean = false,
+    val rentSuccess: Boolean = false,
     val error: String? = null,
     val rentalDays: Int = 1,
     val platformFeeRate: Double = 0.05,
@@ -88,6 +90,21 @@ class ProductDetailViewModel(
     fun updateRentalDays(days: Int) {
         if (days >= 1) {
             _uiState.update { it.copy(rentalDays = days) }
+        }
+    }
+
+    fun rentProduct(onSuccess: () -> Unit) {
+        val uid = auth.currentUser?.uid ?: return
+        val days = _uiState.value.rentalDays
+        viewModelScope.launch {
+            _uiState.update { it.copy(isRenting = true) }
+            val success = rentalRepository.rentItem(productId, uid, days)
+            if (success) {
+                _uiState.update { it.copy(isRenting = false, rentSuccess = true) }
+                onSuccess()
+            } else {
+                _uiState.update { it.copy(isRenting = false, error = "Failed to process rental. Please contact support.") }
+            }
         }
     }
 }

@@ -13,6 +13,7 @@ import com.example.borrowbay.features.productdetail.ui.ProductDetailScreen
 import com.example.borrowbay.features.onboarding.ui.OnboardingScreen
 import com.example.borrowbay.features.profile.ui.ProfileApp
 import com.example.borrowbay.features.userregistration.ui.UserRegistrationScreen
+import com.example.borrowbay.features.payment.ui.PaymentSuccessScreen
 import com.google.firebase.auth.FirebaseAuth
 
 @Composable
@@ -82,7 +83,12 @@ fun NavGraph() {
             val productId = backStackEntry.arguments?.getString("productId") ?: return@composable
             ProductDetailScreen(
                 productId = productId,
-                onBackClick = { navController.popBackStack() }
+                onBackClick = { navController.popBackStack() },
+                onPaymentSuccess = {
+                    navController.navigate("payment_success") {
+                        popUpTo("product_detail/$productId") { inclusive = true }
+                    }
+                }
             )
         }
         composable("add_product") {
@@ -100,6 +106,15 @@ fun NavGraph() {
                 onSignOut = {
                     navController.navigate("login") {
                         popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
+        }
+        composable("payment_success") {
+            PaymentSuccessScreen(
+                onFinished = {
+                    navController.navigate("profile") {
+                        popUpTo("home") { inclusive = false }
                     }
                 }
             )

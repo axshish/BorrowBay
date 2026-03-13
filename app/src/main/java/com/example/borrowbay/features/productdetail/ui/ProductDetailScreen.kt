@@ -41,6 +41,7 @@ import java.util.Locale
 fun ProductDetailScreen(
     productId: String,
     onBackClick: () -> Unit,
+    onPaymentSuccess: () -> Unit,
     viewModel: ProductDetailViewModel = viewModel(factory = ProductDetailViewModelFactory(productId))
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -50,7 +51,9 @@ fun ProductDetailScreen(
     val razorpayHelper = remember {
         activity?.let {
             RazorpayHelper(it, onSuccess = {
-                Toast.makeText(context, "Payment Successful!", Toast.LENGTH_LONG).show()
+                viewModel.rentProduct {
+                    onPaymentSuccess()
+                }
             }, onError = { code, desc ->
                 Toast.makeText(context, "Payment Failed: $desc", Toast.LENGTH_LONG).show()
             })
@@ -59,9 +62,10 @@ fun ProductDetailScreen(
 
     Scaffold(
         bottomBar = {
-            if (uiState.item != null) {
+            if (uiState.item != null && uiState.item!!.isAvailable) {
                 RentNowBottomBar(
                     pricePerDay = uiState.item!!.pricePerDay,
+                    isLoading = uiState.isRenting,
                     onRentClick = {
                         val auth = FirebaseAuth.getInstance()
                         val currentUser = auth.currentUser
@@ -69,7 +73,6 @@ fun ProductDetailScreen(
                             val totalInPaisa = (uiState.totalPrice * 100).toInt()
                             val depositInPaisa = (uiState.securityDeposit * 100).toInt()
                             
-                            // Split payment: Deposit stays with platform, rest goes to merchant
                             razorpayHelper.startPayment(
                                 totalAmountInPaisa = totalInPaisa,
                                 itemName = uiState.item!!.name,
@@ -302,7 +305,7 @@ fun RentalDaysPicker(days: Int, onDaysChange: (Int) -> Unit) {
 }
 
 @Composable
-fun RentNowBottomBar(pricePerDay: Double, onRentClick: () -> Unit) {
+fun RentNowBottomBar(pricePerDay: Double, isLoading: Boolean, onRentClick: () -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shadowElevation = 16.dp,
@@ -316,9 +319,14 @@ fun RentNowBottomBar(pricePerDay: Double, onRentClick: () -> Unit) {
                 onClick = onRentClick,
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Ocean)
+                colors = ButtonDefaults.buttonColors(containerColor = Ocean),
+                enabled = !isLoading
             ) {
-                Text("Rent Now — ₹${pricePerDay.toInt()}/day", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                if (isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
+                } else {
+                    Text("Rent Now — ₹${pricePerDay.toInt()}/day", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                }
             }
         }
     }

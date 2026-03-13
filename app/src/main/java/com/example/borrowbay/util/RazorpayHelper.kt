@@ -3,15 +3,15 @@ package com.example.borrowbay.util
 import android.app.Activity
 import android.util.Log
 import android.widget.Toast
+import com.example.borrowbay.MainActivity
 import com.razorpay.Checkout
-import com.razorpay.PaymentResultListener
 import org.json.JSONObject
 
 class RazorpayHelper(
     private val activity: Activity,
     private val onSuccess: (String) -> Unit = {},
     private val onError: (Int, String) -> Unit = { _, _ -> }
-) : PaymentResultListener {
+) {
 
     init {
         Checkout.preload(activity.applicationContext)
@@ -32,8 +32,11 @@ class RazorpayHelper(
         merchantId: String?,
         depositAmountInPaisa: Int
     ) {
+        // Set the listeners in MainActivity before starting the payment
+        MainActivity.onPaymentSuccess = onSuccess
+        MainActivity.onPaymentError = onError
+
         val checkout = Checkout()
-        // checkout.setKeyID("rzp_test_YOUR_ACTUAL_KEY") 
         checkout.setKeyID("rzp_test_SQWikLUEBMFnuk")
 
         try {
@@ -48,10 +51,6 @@ class RazorpayHelper(
             prefill.put("contact", userContact)
             options.put("prefill", prefill)
 
-            // NOTE: Split payments (transfers) require Razorpay Route to be enabled on your account.
-            // If it's not enabled, this part might cause the checkout to fail in test mode.
-            // For simple testing, you can comment out the 'transfers' block.
-            
             if (!merchantId.isNullOrBlank() && merchantId.startsWith("acc_") && merchantId != "acc_TEST_123") {
                 val transfers = org.json.JSONArray()
                 val merchantTransfer = JSONObject()
@@ -67,16 +66,9 @@ class RazorpayHelper(
         } catch (e: Exception) {
             Log.e("RazorpayHelper", "Error in starting Razorpay Checkout", e)
             Toast.makeText(activity, "Checkout error: ${e.message}", Toast.LENGTH_SHORT).show()
+            // Reset listeners if start fails
+            MainActivity.onPaymentSuccess = null
+            MainActivity.onPaymentError = null
         }
-    }
-
-    override fun onPaymentSuccess(razorpayPaymentId: String?) {
-        onSuccess(razorpayPaymentId ?: "")
-    }
-
-    override fun onPaymentError(code: Int, response: String?) {
-        // Detailed logging for debugging
-        Log.e("RazorpayHelper", "Payment Error ($code): $response")
-        onError(code, response ?: "Unknown Error")
     }
 }

@@ -21,7 +21,10 @@ data class RentalItem(
     val sellerEmail: String = "",
     val sellerPhone: String? = null,
     val timestamp: Long = System.currentTimeMillis(),
-    val owner: Owner? = null
+    val owner: Owner? = null,
+    val rentedAt: Long? = null,
+    val renterId: String? = null,
+    val rentalDurationDays: Int? = null
 )
 
 @Serializable

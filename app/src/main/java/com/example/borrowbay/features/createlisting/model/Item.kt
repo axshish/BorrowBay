@@ -15,9 +15,10 @@ data class Item(
     val location: String = "",
     val latitude: Double? = null,
     val longitude: Double? = null,
+    val isAvailable: Boolean = true,
     val ownerId: String = "",
     val sellerEmail: String = "",
     val sellerPhone: String? = null,
     val timestamp: Long = System.currentTimeMillis(),
-    val owner: Owner? = null // Added owner details for better rendering on Home Screen
+    val owner: Owner? = null
 )
