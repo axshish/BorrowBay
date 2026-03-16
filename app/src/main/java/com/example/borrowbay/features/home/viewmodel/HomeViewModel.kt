@@ -36,7 +36,7 @@ data class HomeUiState(
     val globalRentals: List<RentalItem> = emptyList(),
     val trendingRentals: List<RentalItem> = emptyList(),
     val selectedCategory: String? = null,
-    val userAddress: String = "Detecting location...",
+    val userAddress: String = "Set your location",
     val userName: String = "User",
     val userAvatarUrl: String? = null,
     val userLatitude: Double? = null,
@@ -189,7 +189,8 @@ class HomeViewModel(
     fun onRefresh() {
         viewModelScope.launch {
             _uiState.update { it.copy(isRefreshing = true) }
-            refreshNearbyAndGlobal()
+            // refreshNearbyAndGlobal() // Removed autodetect/location refresh on main refresh
+            fetchUserData() // Re-fetch from DB instead of GPS
             delay(1000)
             _uiState.update { it.copy(isRefreshing = false) }
         }
@@ -207,7 +208,8 @@ class HomeViewModel(
                 category = state.selectedCategory,
                 query = state.searchQuery,
                 sort = state.selectedSort,
-                excludeUserId = currentUserId
+                excludeUserId = currentUserId,
+                radiusKm = 10.0
             ).collect { nearby ->
                 _uiState.update { it.copy(nearbyRentals = nearby, isLoading = false) }
             }
@@ -235,7 +237,8 @@ class HomeViewModel(
                 sort = _uiState.value.selectedSort,
                 limit = 10,
                 lastDoc = lastVisibleGlobalDoc,
-                excludeUserId = currentUserId
+                excludeUserId = currentUserId,
+                minDistanceKm = 10.0
             )
 
             _uiState.update { it.copy(

@@ -2,8 +2,6 @@ package com.example.borrowbay.features.auth.ui
 
 import android.app.Activity
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -32,9 +30,6 @@ import com.example.borrowbay.core.ui.components.countries
 import com.example.borrowbay.features.auth.viewmodel.AuthState
 import com.example.borrowbay.features.auth.viewmodel.AuthViewModel
 import com.example.borrowbay.ui.theme.*
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions
-import com.google.android.gms.common.api.ApiException
 
 @Composable
 fun LoginScreen(
@@ -61,20 +56,6 @@ fun LoginScreen(
             viewModel.resetState()
         } else if (showPhoneInput) {
             showPhoneInput = false
-        }
-    }
-
-    val googleSignInLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-            try {
-                val account = task.getResult(ApiException::class.java)
-                account.idToken?.let { viewModel.signInWithGoogle(it) }
-            } catch (e: ApiException) {
-                viewModel.setErrorMessage("Google sign in failed: ${e.message}")
-            }
         }
     }
 
@@ -168,33 +149,6 @@ fun LoginScreen(
             } else {
                 AnimatedVisibility(visible = !showPhoneInput) {
                     Column {
-                        OutlinedButton(
-                            onClick = {
-                                val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                                    .requestIdToken("153761461660-496v7i8sct03oj6lk3qfl2dhl1qvfn60.apps.googleusercontent.com")
-                                    .requestEmail()
-                                    .build()
-                                val googleSignInClient = GoogleSignIn.getClient(context, gso)
-                                googleSignInLauncher.launch(googleSignInClient.signInIntent)
-                            },
-                            modifier = Modifier.fillMaxWidth().height(56.dp),
-                            shape = RoundedCornerShape(16.dp),
-                            border = BorderStroke(1.dp, BorderLight),
-                            colors = ButtonDefaults.outlinedButtonColors(containerColor = SurfaceLight, contentColor = Color.Black)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("G", fontWeight = FontWeight.Bold, color = Destructive, fontSize = 22.sp)
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text(
-                                    if (isSignUpMode) "Sign up with Google" else "Continue with Google", 
-                                    fontSize = 16.sp, 
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
                         OutlinedButton(
                             onClick = { showPhoneInput = true },
                             modifier = Modifier.fillMaxWidth().height(56.dp),

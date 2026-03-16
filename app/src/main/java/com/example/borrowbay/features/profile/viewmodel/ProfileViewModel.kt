@@ -169,6 +169,19 @@ class ProfileViewModel(
         }
     }
 
+    fun markAsReturned(itemId: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            val success = rentalRepository.markItemAsReturned(itemId)
+            if (success) {
+                // The flow will automatically update because of SnapshotListener in Repository
+                _isLoading.value = false
+            } else {
+                _isLoading.value = false
+            }
+        }
+    }
+
     fun navigateTo(screen: ProfileScreenState) {
         _currentScreen.value = screen
     }

@@ -23,6 +23,7 @@ data class RentalItem(
     val owner: Owner? = null,
     val rentedAt: Long? = null,
     val renterId: String? = null,
+    val renter: Owner? = null,
     val rentalDurationDays: Int? = null
 )
 

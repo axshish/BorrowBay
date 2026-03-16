@@ -83,32 +83,12 @@ fun HomeScreen(
     val listState = rememberLazyListState()
     val context = LocalContext.current
 
-    // Permission Launcher for initial location detection
-    val initialPermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
-            permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
-        ) {
-            viewModel.detectCurrentLocation(context)
-        }
-    }
-
     LaunchedEffect(Unit) {
         Configuration.getInstance().load(context, context.getSharedPreferences("osmdroid", Context.MODE_PRIVATE))
         Configuration.getInstance().userAgentValue = context.packageName
         
-        val hasFine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-        val hasCoarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
-        
-        if (hasFine || hasCoarse) {
-            viewModel.detectCurrentLocation(context)
-        } else {
-            initialPermissionLauncher.launch(arrayOf(
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            ))
-        }
+        // We no longer autodetect location here to respect user preference of persistent location.
+        // It will only be detected if the user opens the location picker and selects "detect".
     }
 
     val shouldLoadMore = remember {

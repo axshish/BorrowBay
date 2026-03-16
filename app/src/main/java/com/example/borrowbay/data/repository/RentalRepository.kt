@@ -92,7 +92,8 @@ class RentalRepository {
         category: String?,
         query: String?,
         sort: SortOption,
-        excludeUserId: String? = null
+        excludeUserId: String? = null,
+        radiusKm: Double? = null
     ): Flow<List<RentalItem>> = callbackFlow {
         var baseQuery: Query = firestore.collection("products")
         
@@ -126,6 +127,13 @@ class RentalRepository {
             if (category != null && category != "All") {
                 filtered = filtered.filter { it.categoryId == category }
             }
+            
+            if (radiusKm != null && lat != null && lng != null) {
+                // When searching, we relax the radius constraint if a query exists
+                if (query.isNullOrBlank()) {
+                    filtered = filtered.filter { it.distance <= radiusKm }
+                }
+            }
 
             val sorted = when (sort) {
                 SortOption.DISTANCE -> filtered.sortedBy { it.distance }
@@ -147,7 +155,8 @@ class RentalRepository {
         sort: SortOption,
         limit: Long,
         lastDoc: Any?,
-        excludeUserId: String? = null
+        excludeUserId: String? = null,
+        minDistanceKm: Double? = null
     ): PaginatedResult<RentalItem> {
         return try {
             var baseQuery: Query = firestore.collection("products")
@@ -165,11 +174,29 @@ class RentalRepository {
                 item?.copy(isAvailable = isAvail)
             }
 
+            val processedItems = items.map { item ->
+                val distance = if (lat != null && lng != null && item.latitude != null && item.longitude != null) {
+                    LocationUtils.calculateDistance(lat, lng, item.latitude, item.longitude)
+                } else 0.0
+                item.copy(distance = distance)
+            }
+
             val combined = if (lastDoc == null) {
-                (items + dummyRentals).distinctBy { it.id }
-            } else items
+                (processedItems + dummyRentals).distinctBy { it.id }
+            } else processedItems
 
             var filtered = combined.filter { it.isAvailable }
+            
+            if (excludeUserId != null) {
+                filtered = filtered.filter { it.ownerId != excludeUserId }
+            }
+            
+            // When searching, we don't apply the minimum distance barrier for global results
+            // so that search results show everything regardless of distance
+            if (query.isNullOrBlank() && minDistanceKm != null && lat != null && lng != null) {
+                filtered = filtered.filter { it.distance > minDistanceKm }
+            }
+            
             if (!query.isNullOrBlank()) {
                 filtered = filtered.filter { it.name.contains(query, ignoreCase = true) }
             }
@@ -197,6 +224,24 @@ class RentalRepository {
             true
         } catch (e: Exception) {
             Log.e("RentalRepository", "Error renting item", e)
+            false
+        }
+    }
+
+    suspend fun markItemAsReturned(itemId: String): Boolean {
+        return try {
+            firestore.collection("products").document(itemId).update(
+                mapOf(
+                    "available" to true,
+                    "isAvailable" to true,
+                    "renterId" to null,
+                    "rentedAt" to null,
+                    "rentalDurationDays" to null
+                )
+            ).await()
+            true
+        } catch (e: Exception) {
+            Log.e("RentalRepository", "Error returning item", e)
             false
         }
     }

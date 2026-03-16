@@ -202,17 +202,25 @@ fun SellerCard(item: RentalItem) {
         border = BorderStroke(1.dp, BorderLight)
     ) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            // Always show initial image for seller
-            Box(
-                modifier = Modifier.size(52.dp).background(MutedLight, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = (item.owner?.name ?: "??").take(1).uppercase(),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 20.sp,
-                    color = Ocean
+            if (!item.owner?.avatarUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = item.owner?.avatarUrl,
+                    contentDescription = "Seller Avatar",
+                    modifier = Modifier.size(52.dp).clip(CircleShape),
+                    contentScale = ContentScale.Crop
                 )
+            } else {
+                Box(
+                    modifier = Modifier.size(52.dp).background(MutedLight, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = (item.owner?.name ?: "??").take(1).uppercase(),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp,
+                        color = Ocean
+                    )
+                }
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {

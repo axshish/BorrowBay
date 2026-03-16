@@ -73,7 +73,11 @@ fun RentalHistoryScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     items(rentals) { item ->
-                        RentalCard(item = item, showRenterInfo = true)
+                        RentalCard(
+                            item = item, 
+                            showRenterInfo = true,
+                            showRentalStatus = true
+                        )
                     }
                 }
             }

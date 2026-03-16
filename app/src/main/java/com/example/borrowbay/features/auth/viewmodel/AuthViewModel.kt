@@ -42,25 +42,6 @@ class AuthViewModel : ViewModel() {
         }
     }
 
-    fun signInWithGoogle(idToken: String) {
-        viewModelScope.launch {
-            _authState.value = AuthState.Loading
-            try {
-                val credential = GoogleAuthProvider.getCredential(idToken, null)
-                val result = auth.signInWithCredential(credential).await()
-                val user = result.user
-                if (user != null) {
-                    checkUserProfile(user.uid)
-                } else {
-                    _authState.value = AuthState.Error("Google Sign-In failed: No user found")
-                }
-            } catch (e: Exception) {
-                Log.e("AuthViewModel", "Google Sign-In Error", e)
-                _authState.value = AuthState.Error(e.localizedMessage ?: "Google Sign-In failed")
-            }
-        }
-    }
-
     fun signInWithEmail(email: String, password: String) {
         if (email.isBlank() || password.isBlank()) {
             _authState.value = AuthState.Error("Email and password cannot be empty")
