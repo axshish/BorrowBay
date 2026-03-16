@@ -6,6 +6,8 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.borrowbay.core.supabase
+import com.example.borrowbay.core.ui.components.Country
+import com.example.borrowbay.core.ui.components.countries
 import com.example.borrowbay.data.model.User
 import com.example.borrowbay.data.repository.UserRepository
 import com.google.firebase.auth.FirebaseAuth
@@ -32,9 +34,10 @@ data class UserRegistrationUiState(
     val name: String = "",
     val email: String = "",
     val phone: String = "",
+    val selectedCountry: Country = countries.first(),
     val address: String = "",
-    val latitude: Double? = null,
-    val longitude: Double? = null,
+    val latitude: Double? = 19.1235, // Default: L&T Main Building, Mumbai
+    val longitude: Double? = 73.0135,
     val locationName: String = "",
     val razorpayId: String = "",
     val avatarUri: String? = null,
@@ -54,9 +57,19 @@ class UserRegistrationViewModel : ViewModel() {
         // Pre-fill email and phone if available from Firebase Auth
         val currentUser = auth.currentUser
         if (currentUser != null) {
+            val firebasePhone = currentUser.phoneNumber ?: ""
+            // Try to match country code from firebase phone
+            val matchingCountry = countries.find { firebasePhone.startsWith(it.code) }
+            val phoneWithoutCode = if (matchingCountry != null) {
+                firebasePhone.removePrefix(matchingCountry.code)
+            } else {
+                firebasePhone
+            }
+
             _uiState.update { it.copy(
                 email = currentUser.email ?: "",
-                phone = currentUser.phoneNumber ?: "",
+                phone = phoneWithoutCode,
+                selectedCountry = matchingCountry ?: countries.first(),
                 name = currentUser.displayName ?: "",
                 avatarUri = currentUser.photoUrl?.toString()
             ) }
@@ -64,15 +77,23 @@ class UserRegistrationViewModel : ViewModel() {
     }
 
     fun updateName(name: String) {
-        _uiState.update { it.copy(name = name) }
+        if (name.length <= 50) {
+            _uiState.update { it.copy(name = name) }
+        }
     }
 
     fun updateEmail(email: String) {
-        _uiState.update { it.copy(email = email) }
+        if (email.length <= 100) {
+            _uiState.update { it.copy(email = email) }
+        }
     }
 
     fun updatePhone(phone: String) {
         _uiState.update { it.copy(phone = phone) }
+    }
+
+    fun updateCountry(country: Country) {
+        _uiState.update { it.copy(selectedCountry = country) }
     }
 
     fun updateLocation(lat: Double, lng: Double, name: String, address: String) {
@@ -117,9 +138,9 @@ class UserRegistrationViewModel : ViewModel() {
         val state = _uiState.value
         return when (state.currentStep) {
             RegistrationStep.PROFILE_PICTURE -> true
-            RegistrationStep.NAME -> state.name.isNotBlank()
+            RegistrationStep.NAME -> state.name.isNotBlank() && state.name.length >= 2
             RegistrationStep.EMAIL -> isValidEmail(state.email)
-            RegistrationStep.PHONE -> state.phone.isNotBlank()
+            RegistrationStep.PHONE -> state.phone.length == state.selectedCountry.maxLength
             RegistrationStep.LOCATION -> state.locationName.isNotBlank() && state.latitude != null
             RegistrationStep.RAZORPAY -> true
         }
@@ -159,11 +180,13 @@ class UserRegistrationViewModel : ViewModel() {
                 currentUser.updateProfile(profileUpdates).await()
 
                 // 3. Create User Object for Firestore
+                val fullPhone = if (state.phone.isNotBlank()) state.selectedCountry.code + state.phone else null
+                
                 val user = User(
                     id = currentUser.uid,
                     name = state.name,
                     email = state.email,
-                    phone = state.phone.ifBlank { null },
+                    phone = fullPhone,
                     avatarUrl = avatarUrl,
                     address = state.address.ifBlank { null },
                     latitude = state.latitude,

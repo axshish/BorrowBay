@@ -18,6 +18,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.borrowbay.core.ui.components.PhoneInputField
+import com.example.borrowbay.core.ui.components.countries
 import com.example.borrowbay.features.profile.model.UserProfile
 import com.example.borrowbay.ui.theme.*
 
@@ -30,7 +32,18 @@ fun DetailsScreen(
     onBack: () -> Unit
 ) {
     var name by remember { mutableStateOf(profile.name) }
-    var phone by remember { mutableStateOf(profile.phone) }
+    
+    // Parse phone and country from profile.phone (which includes the code)
+    val initialCountry = remember(profile.phone) {
+        countries.find { profile.phone.startsWith(it.code) } ?: countries.first()
+    }
+    val initialPhone = remember(profile.phone, initialCountry) {
+        profile.phone.removePrefix(initialCountry.code)
+    }
+    
+    var phone by remember { mutableStateOf(initialPhone) }
+    var selectedCountry by remember { mutableStateOf(initialCountry) }
+    
     var email by remember { mutableStateOf(profile.email) }
     var address by remember { mutableStateOf(profile.address) }
 
@@ -68,11 +81,12 @@ fun DetailsScreen(
             Text("Full Name", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color.Black)
             OutlinedTextField(
                 value = name,
-                onValueChange = { name = it },
+                onValueChange = { name = it.replace("\n", "") },
                 placeholder = { Text("Enter your name", color = MutedFgLight) },
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                 shape = RoundedCornerShape(14.dp),
                 singleLine = true,
+                maxLines = 1,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Ocean,
@@ -86,23 +100,12 @@ fun DetailsScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            Text("Phone Number", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color.Black)
-            OutlinedTextField(
-                value = phone,
-                onValueChange = { phone = it },
-                placeholder = { Text("Enter your phone number", color = MutedFgLight) },
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                shape = RoundedCornerShape(14.dp),
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone, imeAction = ImeAction.Next),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Ocean,
-                    unfocusedBorderColor = BorderLight,
-                    unfocusedContainerColor = SurfaceLight,
-                    focusedContainerColor = SurfaceLight,
-                    focusedTextColor = Color.Black,
-                    unfocusedTextColor = Color.Black
-                )
+            PhoneInputField(
+                phoneNumber = phone,
+                onPhoneNumberChange = { phone = it },
+                selectedCountry = selectedCountry,
+                onCountrySelected = { selectedCountry = it },
+                modifier = Modifier.padding(top = 8.dp)
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -110,11 +113,12 @@ fun DetailsScreen(
             Text("Email Address", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color.Black)
             OutlinedTextField(
                 value = email,
-                onValueChange = { email = it },
+                onValueChange = { email = it.replace("\n", "") },
                 placeholder = { Text("Enter your email", color = MutedFgLight) },
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                 shape = RoundedCornerShape(14.dp),
                 singleLine = true,
+                maxLines = 1,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Ocean,
@@ -152,11 +156,13 @@ fun DetailsScreen(
 
             Button(
                 onClick = {
-                    onSave(profile.copy(name = name, phone = phone, email = email, address = address))
+                    val fullPhone = if (phone.isNotBlank()) selectedCountry.code + phone else ""
+                    onSave(profile.copy(name = name, phone = fullPhone, email = email, address = address))
                 },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Ocean, contentColor = OnPrimary)
+                colors = ButtonDefaults.buttonColors(containerColor = Ocean, contentColor = OnPrimary),
+                enabled = phone.length == selectedCountry.maxLength || phone.isBlank()
             ) {
                 Text("Update Profile", fontSize = 18.sp, fontWeight = FontWeight.Bold)
             }

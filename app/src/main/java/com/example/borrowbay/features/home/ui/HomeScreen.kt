@@ -384,7 +384,7 @@ fun SearchAndFiltersSection(
         // Search Bar
         OutlinedTextField(
             value = query,
-            onValueChange = onQueryChange,
+            onValueChange = { onQueryChange(it.replace("\n", "")) },
             modifier = Modifier
                 .weight(1f)
                 .height(52.dp),
@@ -396,9 +396,12 @@ fun SearchAndFiltersSection(
                 focusedBorderColor = Ocean,
                 cursorColor = Ocean,
                 unfocusedContainerColor = Color.White,
-                focusedContainerColor = Color.White
+                focusedContainerColor = Color.White,
+                focusedTextColor = Color.Black,
+                unfocusedTextColor = Color.Black
             ),
-            singleLine = true
+            singleLine = true,
+            maxLines = 1
         )
 
         // Filter Button
@@ -757,7 +760,7 @@ fun LocationPickerDialog(
                         OutlinedTextField(
                             value = address,
                             onValueChange = {
-                                address = it
+                                address = it.replace("\n", "")
                                 if (!isProgrammaticUpdate && it.length > 3) {
                                     searchAddress(it)
                                 } else {
@@ -785,6 +788,8 @@ fun LocationPickerDialog(
                             modifier = Modifier.fillMaxWidth(), 
                             shape = RoundedCornerShape(16.dp),
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                            singleLine = true,
+                            maxLines = 1,
                             colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Ocean, unfocusedBorderColor = BorderLight, unfocusedContainerColor = SurfaceLight, focusedContainerColor = SurfaceLight, focusedTextColor = Color.Black, unfocusedTextColor = Color.Black)
                         )
 
@@ -840,10 +845,25 @@ fun RazorpaySetupDialog(onDismiss: () -> Unit, onSave: (String) -> Unit) {
                 Spacer(Modifier.height(16.dp))
                 OutlinedTextField(
                     value = id,
-                    onValueChange = { id = it },
+                    onValueChange = { 
+                        if (it.length <= 20) id = it.replace("\n", "") 
+                    },
                     label = { Text("Razorpay ID") },
                     placeholder = { Text("acc_...") },
-                    singleLine = true
+                    singleLine = true,
+                    maxLines = 1,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Ocean,
+                        unfocusedBorderColor = BorderLight,
+                        focusedTextColor = Color.Black,
+                        unfocusedTextColor = Color.Black
+                    )
+                )
+                Text(
+                    text = "Limit: ${id.length}/20",
+                    fontSize = 11.sp,
+                    color = MutedFgLight,
+                    modifier = Modifier.padding(top = 4.dp)
                 )
             }
         },

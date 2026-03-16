@@ -27,6 +27,8 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.borrowbay.core.ui.components.PhoneInputField
+import com.example.borrowbay.core.ui.components.countries
 import com.example.borrowbay.features.auth.viewmodel.AuthState
 import com.example.borrowbay.features.auth.viewmodel.AuthViewModel
 import com.example.borrowbay.ui.theme.*
@@ -45,6 +47,7 @@ fun LoginScreen(
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     var phoneNumber by remember { mutableStateOf("") }
+    var selectedCountry by remember { mutableStateOf(countries.first()) }
     var otpCode by remember { mutableStateOf("") }
     var showPhoneInput by remember { mutableStateOf(false) }
     var isSignUpMode by remember { mutableStateOf(false) }
@@ -131,6 +134,8 @@ fun LoginScreen(
                     placeholder = { Text("000000", color = MutedFgLight) },
                     shape = RoundedCornerShape(16.dp),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    maxLines = 1,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Ocean,
                         unfocusedBorderColor = BorderLight,
@@ -222,12 +227,13 @@ fun LoginScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                         OutlinedTextField(
                             value = email,
-                            onValueChange = { email = it },
+                            onValueChange = { email = it.replace("\n", "") },
                             modifier = Modifier.fillMaxWidth(),
                             placeholder = { Text("you@example.com", color = MutedFgLight) },
                             shape = RoundedCornerShape(14.dp),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                             singleLine = true,
+                            maxLines = 1,
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = Ocean,
                                 unfocusedBorderColor = BorderLight,
@@ -244,7 +250,7 @@ fun LoginScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                         OutlinedTextField(
                             value = password,
-                            onValueChange = { password = it },
+                            onValueChange = { password = it.replace("\n", "") },
                             modifier = Modifier.fillMaxWidth(),
                             placeholder = { Text("Minimum 6 characters", color = MutedFgLight) },
                             shape = RoundedCornerShape(14.dp),
@@ -257,6 +263,7 @@ fun LoginScreen(
                                 }
                             },
                             singleLine = true,
+                            maxLines = 1,
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = Ocean,
                                 unfocusedBorderColor = BorderLight,
@@ -321,31 +328,22 @@ fun LoginScreen(
 
                 AnimatedVisibility(visible = showPhoneInput) {
                     Column {
-                        Text("Phone Number", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color.Black)
-                        Spacer(modifier = Modifier.height(12.dp))
-                        OutlinedTextField(
-                            value = phoneNumber,
-                            onValueChange = { phoneNumber = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            placeholder = { Text("+1234567890", color = MutedFgLight) },
-                            shape = RoundedCornerShape(14.dp),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Ocean,
-                                unfocusedBorderColor = BorderLight,
-                                unfocusedContainerColor = SurfaceLight,
-                                focusedContainerColor = SurfaceLight,
-                                focusedTextColor = Color.Black,
-                                unfocusedTextColor = Color.Black
-                            )
+                        PhoneInputField(
+                            phoneNumber = phoneNumber,
+                            onPhoneNumberChange = { phoneNumber = it },
+                            selectedCountry = selectedCountry,
+                            onCountrySelected = { selectedCountry = it }
                         )
                         Spacer(modifier = Modifier.height(32.dp))
                         Button(
-                            onClick = { viewModel.signInWithPhone(phoneNumber, context as Activity) },
+                            onClick = { 
+                                val fullPhone = selectedCountry.code + phoneNumber
+                                viewModel.signInWithPhone(fullPhone, context as Activity) 
+                            },
                             modifier = Modifier.fillMaxWidth().height(56.dp),
                             shape = RoundedCornerShape(16.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = Ocean, contentColor = OnPrimary),
-                            enabled = phoneNumber.isNotEmpty() && authState !is AuthState.Loading
+                            enabled = phoneNumber.length == selectedCountry.maxLength && authState !is AuthState.Loading
                         ) {
                             if (authState is AuthState.Loading) {
                                 CircularProgressIndicator(color = OnPrimary, modifier = Modifier.size(24.dp))

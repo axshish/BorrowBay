@@ -54,6 +54,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.example.borrowbay.core.ui.components.PhoneInputField
 import com.example.borrowbay.features.userregistration.viewmodel.RegistrationStep
 import com.example.borrowbay.features.userregistration.viewmodel.UserRegistrationViewModel
 import com.example.borrowbay.ui.theme.*
@@ -87,7 +88,6 @@ fun UserRegistrationScreen(
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     
-    // Initialize OSM Configuration
     LaunchedEffect(Unit) {
         Configuration.getInstance().userAgentValue = context.packageName
     }
@@ -119,11 +119,8 @@ fun UserRegistrationScreen(
             val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
             val storageDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
             val photoFile = File.createTempFile("PROFILE_${timeStamp}_", ".jpg", storageDir)
-            
-            // Explicitly use the authority defined in AndroidManifest.xml
             val authority = "${context.packageName}.provider"
             val uri = FileProvider.getUriForFile(context, authority, photoFile)
-            
             tempPhotoUri = uri
             cameraLauncher.launch(uri)
         } catch (e: Exception) {
@@ -247,25 +244,51 @@ fun UserRegistrationScreen(
                         RegistrationStep.NAME -> {
                             HeaderSection("What's your name?", "This helps build trust in our community.")
                             Spacer(Modifier.height(32.dp))
-                            RegistrationInputField("Full Name", uiState.name, { viewModel.updateName(it) }, "e.g., John Doe", imeAction = ImeAction.Next)
+                            RegistrationInputField(
+                                label = "Full Name",
+                                value = uiState.name,
+                                onValueChange = { viewModel.updateName(it) },
+                                placeholder = "e.g., John Doe",
+                                imeAction = ImeAction.Done
+                            )
+                            Text(
+                                text = "${uiState.name.length}/50",
+                                fontSize = 12.sp,
+                                color = if (uiState.name.length >= 50) Destructive else MutedFgLight,
+                                modifier = Modifier.padding(top = 4.dp).align(Alignment.End)
+                            )
                         }
                         RegistrationStep.EMAIL -> {
                             HeaderSection("Your email address", "We'll use this for account notifications.")
                             Spacer(Modifier.height(32.dp))
-                            RegistrationInputField("Email Address", uiState.email, { viewModel.updateEmail(it) }, "e.g., john@example.com", KeyboardType.Email, imeAction = ImeAction.Next)
+                            RegistrationInputField(
+                                label = "Email Address",
+                                value = uiState.email,
+                                onValueChange = { viewModel.updateEmail(it) },
+                                placeholder = "e.g., john@example.com",
+                                keyboardType = KeyboardType.Email,
+                                imeAction = ImeAction.Done
+                            )
                         }
                         RegistrationStep.PHONE -> {
                             HeaderSection("Phone number", "Required for secure communication between users.")
                             Spacer(Modifier.height(32.dp))
-                            RegistrationInputField("Phone Number", uiState.phone, { viewModel.updatePhone(it) }, "e.g., +91 9876543210", KeyboardType.Phone, imeAction = ImeAction.Next)
+                            PhoneInputField(
+                                phoneNumber = uiState.phone,
+                                onPhoneNumberChange = { viewModel.updatePhone(it) },
+                                selectedCountry = uiState.selectedCountry,
+                                onCountrySelected = { viewModel.updateCountry(it) },
+                                imeAction = ImeAction.Done,
+                                keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() })
+                            )
                         }
                         RegistrationStep.LOCATION -> {
                             HeaderSection("Where are you located?", "Set your primary location for rentals.")
                             Spacer(Modifier.height(32.dp))
                             LocationSelectionStep(
                                 address = uiState.address,
-                                latitude = uiState.latitude ?: 0.0,
-                                longitude = uiState.longitude ?: 0.0,
+                                latitude = uiState.latitude ?: 19.1235,
+                                longitude = uiState.longitude ?: 73.0135,
                                 onLocationSelected = { lat, lng, name, addr ->
                                     viewModel.updateLocation(lat, lng, name, addr)
                                 }
@@ -315,7 +338,10 @@ fun RegistrationInputField(
             placeholder = { Text(placeholder, color = MutedFgLight) },
             shape = RoundedCornerShape(14.dp),
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = imeAction),
-            keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(androidx.compose.ui.focus.FocusDirection.Down) }),
+            keyboardActions = KeyboardActions(
+                onNext = { focusManager.moveFocus(androidx.compose.ui.focus.FocusDirection.Down) },
+                onDone = { focusManager.clearFocus() }
+            ),
             singleLine = true,
             maxLines = 1,
             colors = OutlinedTextFieldDefaults.colors(
@@ -400,7 +426,6 @@ fun LocationSelectionStep(
                         if (loc != null) {
                             updateFromLocation(loc.latitude, loc.longitude)
                         } else {
-                            // Fallback to last location
                             fusedLocationClient.lastLocation.addOnSuccessListener { lastLoc ->
                                 if (lastLoc != null) {
                                     updateFromLocation(lastLoc.latitude, lastLoc.longitude)
@@ -437,6 +462,7 @@ fun LocationSelectionStep(
                         setTileSource(TileSourceFactory.MAPNIK)
                         setMultiTouchControls(true)
                         controller.setZoom(15.0)
+                        controller.setCenter(GeoPoint(latitude, longitude))
 
                         val eventsReceiver = object : MapEventsReceiver {
                             override fun singleTapConfirmedHelper(p: GeoPoint): Boolean {
@@ -510,6 +536,11 @@ fun LocationSelectionStep(
                 shape = RoundedCornerShape(16.dp),
                 singleLine = true,
                 maxLines = 1,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { 
+                    searchJob?.cancel()
+                    if (address.length > 3) searchAddress(address)
+                }),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Ocean,
                     unfocusedBorderColor = BorderLight,
@@ -546,17 +577,22 @@ fun LocationSelectionStep(
 
 @Composable
 fun RazorpaySetupStep(razorpayId: String, onIdChange: (String) -> Unit) {
+    val focusManager = LocalFocusManager.current
     Column {
         Text("Merchant ID", fontWeight = FontWeight.Bold, color = Color.Black)
         Spacer(Modifier.height(8.dp))
         OutlinedTextField(
             value = razorpayId,
-            onValueChange = { onIdChange(it.replace("\n", "")) },
+            onValueChange = { 
+                if (it.length <= 20) onIdChange(it.replace("\n", "")) 
+            },
             modifier = Modifier.fillMaxWidth(),
             placeholder = { Text("acc_Hxxxxx", color = MutedFgLight) },
             shape = RoundedCornerShape(14.dp),
             singleLine = true,
             maxLines = 1,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = Ocean,
                 unfocusedBorderColor = BorderLight,
@@ -565,6 +601,13 @@ fun RazorpaySetupStep(razorpayId: String, onIdChange: (String) -> Unit) {
                 focusedTextColor = Color.Black,
                 unfocusedTextColor = Color.Black
             )
+        )
+        
+        Text(
+            text = "Limit: ${razorpayId.length}/20",
+            fontSize = 11.sp,
+            color = MutedFgLight,
+            modifier = Modifier.padding(top = 4.dp, start = 4.dp)
         )
         
         Spacer(modifier = Modifier.height(24.dp))
@@ -667,16 +710,12 @@ fun Modifier.drawDashedBorder(color: Color, cornerRadius: androidx.compose.ui.un
     }
 )
 
-/**
- * Custom TakePicture contract to hint the system camera to use the front-facing (selfie) camera.
- */
 class TakePictureWithFrontCamera : ActivityResultContracts.TakePicture() {
     override fun createIntent(context: Context, input: Uri): Intent {
         return super.createIntent(context, input).apply {
             putExtra("android.intent.extras.CAMERA_FACING", 1)
             putExtra("android.intent.extras.LENS_FACING_FRONT", 1)
             putExtra("android.intent.extra.USE_FRONT_CAMERA", true)
-            // Support for some specific manufacturer's camera apps
             putExtra("camerafacing", "front")
             putExtra("previous_mode", "front")
         }
