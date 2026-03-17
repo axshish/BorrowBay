@@ -6,7 +6,6 @@ import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.DocumentSnapshot
 import com.example.borrowbay.data.model.Category
 import com.example.borrowbay.data.model.RentalItem
-import com.example.borrowbay.data.model.Owner
 import com.example.borrowbay.features.home.viewmodel.SortOption
 import com.example.borrowbay.util.LocationUtils
 import kotlinx.coroutines.channels.awaitClose
@@ -43,45 +42,6 @@ class RentalRepository {
         Category("Office", "Office", "💼")
     )
 
-    private val dummyRentals = listOf(
-        RentalItem(
-            id = "dummy1",
-            name = "Sony A7III Camera",
-            description = "Full-frame mirrorless camera with 28-70mm lens. Perfect for photography and 4K video.",
-            categoryId = "Photography",
-            pricePerDay = 800.0,
-            securityDeposit = 5000.0,
-            distance = 1.2,
-            location = "Connaught Place, Delhi",
-            imageUrls = listOf("https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80"),
-            owner = Owner(id = "o1", name = "John Carter")
-        ),
-        RentalItem(
-            id = "dummy2",
-            name = "Mountain Trek Bike",
-            description = "High-performance mountain bike with front suspension and disc brakes.",
-            categoryId = "Sports",
-            pricePerDay = 450.0,
-            securityDeposit = 2000.0,
-            distance = 3.5,
-            location = "Andheri, Mumbai",
-            imageUrls = listOf("https://images.unsplash.com/photo-1485965120184-e220f721d03e?auto=format&fit=crop&w=800&q=80"),
-            owner = Owner(id = "o2", name = "Sarah Smith")
-        ),
-        RentalItem(
-            id = "dummy3",
-            name = "Power Drill & Set",
-            description = "Cordless power drill with 2 batteries and a complete bit set for home repairs.",
-            categoryId = "Tools",
-            pricePerDay = 250.0,
-            securityDeposit = 1500.0,
-            distance = 0.8,
-            location = "Whitefield, Bangalore",
-            imageUrls = listOf("https://images.unsplash.com/photo-1504148455328-497c5ef215d0?auto=format&fit=crop&w=800&q=80"),
-            owner = Owner(id = "o3", name = "Mike Ross")
-        )
-    )
-
     fun getCategories(): Flow<List<Category>> = flow {
         emit(staticCategories)
     }
@@ -102,7 +62,7 @@ class RentalRepository {
         }
 
         val listener = baseQuery.addSnapshotListener { snapshot, error ->
-            var items = snapshot?.documents?.mapNotNull { doc ->
+            val items = snapshot?.documents?.mapNotNull { doc ->
                 val item = doc.toObject(RentalItem::class.java)?.copy(id = doc.id)
                 val isAvail = doc.getBoolean("available") ?: doc.getBoolean("isAvailable") ?: true
                 item?.copy(isAvailable = isAvail)
@@ -115,9 +75,7 @@ class RentalRepository {
                 item.copy(distance = distance)
             }
 
-            val combined = (processedItems + dummyRentals).distinctBy { it.id }
-            
-            var filtered = combined.filter { it.isAvailable }
+            var filtered = processedItems.filter { it.isAvailable }
             if (excludeUserId != null) {
                 filtered = filtered.filter { it.ownerId != excludeUserId }
             }
@@ -129,7 +87,6 @@ class RentalRepository {
             }
             
             if (radiusKm != null && lat != null && lng != null) {
-                // When searching, we relax the radius constraint if a query exists
                 if (query.isNullOrBlank()) {
                     filtered = filtered.filter { it.distance <= radiusKm }
                 }
@@ -181,18 +138,12 @@ class RentalRepository {
                 item.copy(distance = distance)
             }
 
-            val combined = if (lastDoc == null) {
-                (processedItems + dummyRentals).distinctBy { it.id }
-            } else processedItems
-
-            var filtered = combined.filter { it.isAvailable }
+            var filtered = processedItems.filter { it.isAvailable }
             
             if (excludeUserId != null) {
                 filtered = filtered.filter { it.ownerId != excludeUserId }
             }
             
-            // When searching, we don't apply the minimum distance barrier for global results
-            // so that search results show everything regardless of distance
             if (query.isNullOrBlank() && minDistanceKm != null && lat != null && lng != null) {
                 filtered = filtered.filter { it.distance > minDistanceKm }
             }
@@ -206,7 +157,7 @@ class RentalRepository {
 
             PaginatedResult(filtered, snapshot.documents.lastOrNull(), snapshot.size() >= limit)
         } catch (e: Exception) {
-            PaginatedResult(dummyRentals, null, false)
+            PaginatedResult(emptyList(), null, false)
         }
     }
 
